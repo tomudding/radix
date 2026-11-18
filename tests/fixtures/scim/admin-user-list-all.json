@@ -1,0 +1,318 @@
+{
+  "scenario": "admin-user-list-all",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:9000/api/v3/core/users/?pagination=false&ordering=username",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "pagination": {
+        "next": 0,
+        "previous": 0,
+        "count": 10,
+        "current": 1,
+        "total_pages": 1,
+        "start_index": 1,
+        "end_index": 10
+      },
+      "results": [
+        {
+          "pk": 2,
+          "username": "ak-outpost-9471da48434046969d76da7e12891deb",
+          "name": "Outpost authentik Embedded Outpost Service-Account",
+          "is_active": true,
+          "last_login": null,
+          "date_joined": "2026-11-17T19:45:00.555875Z",
+          "is_superuser": false,
+          "groups": [],
+          "groups_obj": [],
+          "roles": [
+            "f00e3b2f-e3b9-4c8e-b1ca-fca9fb073560"
+          ],
+          "roles_obj": [
+            {
+              "pk": "f00e3b2f-e3b9-4c8e-b1ca-fca9fb073560",
+              "name": "ak-managed-role--user-2"
+            }
+          ],
+          "email": "",
+          "avatar": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NHB4IiBoZWlnaHQ9IjY0cHgiIHZpZXdCb3g9IjAgMCA2NCA2NCIgdmVyc2lvbj0iMS4xIj48cmVjdCBmaWxsPSIjNDA0NjM3IiBjeD0iMzIiIGN5PSIzMiIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByPSIzMiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBzdHlsZT0iY29sb3I6ICNmZmY7IGxpbmUtaGVpZ2h0OiAxOyBmb250LWZhbWlseTogJ1JlZEhhdFRleHQnLCdPdmVycGFzcycsb3ZlcnBhc3MsaGVsdmV0aWNhLGFyaWFsLHNhbnMtc2VyaWY7ICIgZmlsbD0iI2ZmZiIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI0MDAiIGR5PSIuMWVtIj5PUzwvdGV4dD48L3N2Zz4=",
+          "attributes": {},
+          "uid": "b8c96c3f2692645f2661b970a919659e591d29224a84e561d8984d5e853ddf8a",
+          "path": "goauthentik.io/outposts",
+          "type": "internal_service_account",
+          "uuid": "92fe6497-84dc-4d0f-9eac-5b58a9f3047e",
+          "password_change_date": "2026-11-17T19:45:00.556050Z",
+          "last_updated": "2026-11-17T19:45:00.558958Z"
+        },
+        {
+          "pk": 6,
+          "username": "ak-source-scim-432791aa-7286-467a-94c1-4335737ef571",
+          "name": "SCIM Source Radix (SCIM) Service-Account",
+          "is_active": true,
+          "last_login": null,
+          "date_joined": "2026-11-17T19:45:05.384509Z",
+          "is_superuser": false,
+          "groups": [],
+          "groups_obj": [],
+          "roles": [],
+          "roles_obj": [],
+          "email": "",
+          "avatar": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NHB4IiBoZWlnaHQ9IjY0cHgiIHZpZXdCb3g9IjAgMCA2NCA2NCIgdmVyc2lvbj0iMS4xIj48cmVjdCBmaWxsPSIjNDc1NThiIiBjeD0iMzIiIGN5PSIzMiIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByPSIzMiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBzdHlsZT0iY29sb3I6ICNmZmY7IGxpbmUtaGVpZ2h0OiAxOyBmb250LWZhbWlseTogJ1JlZEhhdFRleHQnLCdPdmVycGFzcycsb3ZlcnBhc3MsaGVsdmV0aWNhLGFyaWFsLHNhbnMtc2VyaWY7ICIgZmlsbD0iI2ZmZiIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI0MDAiIGR5PSIuMWVtIj5TUzwvdGV4dD48L3N2Zz4=",
+          "attributes": {},
+          "uid": "12a58fa93a0405d57edaa25dbcdb72f328e0b6b6bdec7a42d1945bce2f29ced0",
+          "path": "goauthentik.io/sources/scim",
+          "type": "internal_service_account",
+          "uuid": "6e472e35-4922-403b-a2db-518c942b2875",
+          "password_change_date": "2026-11-17T19:45:05.384616Z",
+          "last_updated": "2026-11-17T20:05:32.111688Z"
+        },
+        {
+          "pk": 4,
+          "username": "akadmin",
+          "name": "authentik Default Admin",
+          "is_active": true,
+          "last_login": null,
+          "date_joined": "2026-11-17T19:45:04.899781Z",
+          "is_superuser": true,
+          "groups": [
+            "99cf2102-ef1a-4d46-a3d3-31286f295165"
+          ],
+          "groups_obj": [
+            {
+              "pk": "99cf2102-ef1a-4d46-a3d3-31286f295165",
+              "num_pk": 20444,
+              "name": "authentik Admins",
+              "is_superuser": true,
+              "attributes": {}
+            }
+          ],
+          "roles": [],
+          "roles_obj": [],
+          "email": "root@example.com",
+          "avatar": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NHB4IiBoZWlnaHQ9IjY0cHgiIHZpZXdCb3g9IjAgMCA2NCA2NCIgdmVyc2lvbj0iMS4xIj48cmVjdCBmaWxsPSIjMzc3YjM3IiBjeD0iMzIiIGN5PSIzMiIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByPSIzMiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBzdHlsZT0iY29sb3I6ICNmZmY7IGxpbmUtaGVpZ2h0OiAxOyBmb250LWZhbWlseTogJ1JlZEhhdFRleHQnLCdPdmVycGFzcycsb3ZlcnBhc3MsaGVsdmV0aWNhLGFyaWFsLHNhbnMtc2VyaWY7ICIgZmlsbD0iI2ZmZiIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI0MDAiIGR5PSIuMWVtIj5BQTwvdGV4dD48L3N2Zz4=",
+          "attributes": {},
+          "uid": "6bb3593958219bb7903004481299b69b6bdbd21da392839f2b8eb7608fe4a575",
+          "path": "users",
+          "type": "internal",
+          "uuid": "be7a0ce1-e8a4-49c9-8c0f-2cc8f138f43a",
+          "password_change_date": "2026-11-17T19:46:39.078787Z",
+          "last_updated": "2026-11-17T19:46:39.179592Z"
+        },
+        {
+          "pk": 11,
+          "username": "m-probe-admin",
+          "name": "Adopted Name",
+          "is_active": true,
+          "last_login": null,
+          "date_joined": "2026-11-17T19:54:16.510706Z",
+          "is_superuser": false,
+          "groups": [],
+          "groups_obj": [],
+          "roles": [],
+          "roles_obj": [],
+          "email": "adopted@example.org",
+          "avatar": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NHB4IiBoZWlnaHQ9IjY0cHgiIHZpZXdCb3g9IjAgMCA2NCA2NCIgdmVyc2lvbj0iMS4xIj48cmVjdCBmaWxsPSIjMzdiNmFjIiBjeD0iMzIiIGN5PSIzMiIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByPSIzMiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBzdHlsZT0iY29sb3I6ICNmZmY7IGxpbmUtaGVpZ2h0OiAxOyBmb250LWZhbWlseTogJ1JlZEhhdFRleHQnLCdPdmVycGFzcycsb3ZlcnBhc3MsaGVsdmV0aWNhLGFyaWFsLHNhbnMtc2VyaWY7ICIgZmlsbD0iI2ZmZiIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI0MDAiIGR5PSIuMWVtIj5BTjwvdGV4dD48L3N2Zz4=",
+          "attributes": {},
+          "uid": "5b74faef3f4c27d9e89debd3d7d84869d42b01e8634c7a5e5033f1544efa4f9e",
+          "path": "goauthentik.io/sources/app-scim",
+          "type": "internal",
+          "uuid": "bb15652d-58c7-4402-8188-e55e49639449",
+          "password_change_date": "2026-11-17T19:54:16.510888Z",
+          "last_updated": "2026-11-17T19:54:16.788575Z"
+        },
+        {
+          "pk": 15,
+          "username": "m90001",
+          "name": "SCIM Probe Reborn",
+          "is_active": true,
+          "last_login": null,
+          "date_joined": "2026-11-17T20:04:11.683156Z",
+          "is_superuser": false,
+          "groups": [],
+          "groups_obj": [],
+          "roles": [],
+          "roles_obj": [],
+          "email": "m90001@example.org",
+          "avatar": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NHB4IiBoZWlnaHQ9IjY0cHgiIHZpZXdCb3g9IjAgMCA2NCA2NCIgdmVyc2lvbj0iMS4xIj48cmVjdCBmaWxsPSIjYzhhOGMzIiBjeD0iMzIiIGN5PSIzMiIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByPSIzMiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBzdHlsZT0iY29sb3I6ICNmZmY7IGxpbmUtaGVpZ2h0OiAxOyBmb250LWZhbWlseTogJ1JlZEhhdFRleHQnLCdPdmVycGFzcycsb3ZlcnBhc3MsaGVsdmV0aWNhLGFyaWFsLHNhbnMtc2VyaWY7ICIgZmlsbD0iI2ZmZiIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI0MDAiIGR5PSIuMWVtIj5TUjwvdGV4dD48L3N2Zz4=",
+          "attributes": {},
+          "uid": "6c52156d469b162e15bafb3ac8c8bf17f4cdf866b54b1b928c8dd37e77002ec1",
+          "path": "goauthentik.io/sources/app-scim",
+          "type": "internal",
+          "uuid": "2f7ada72-bf82-4aea-8d65-3435a3686b58",
+          "password_change_date": "2026-11-17T20:04:11.683821Z",
+          "last_updated": "2026-11-17T20:04:11.683825Z"
+        },
+        {
+          "pk": 9,
+          "username": "m90010",
+          "name": "Mapping Probe",
+          "is_active": true,
+          "last_login": null,
+          "date_joined": "2026-11-17T19:54:16.137494Z",
+          "is_superuser": false,
+          "groups": [],
+          "groups_obj": [],
+          "roles": [],
+          "roles_obj": [],
+          "email": "m90010@example.org",
+          "avatar": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NHB4IiBoZWlnaHQ9IjY0cHgiIHZpZXdCb3g9IjAgMCA2NCA2NCIgdmVyc2lvbj0iMS4xIj48cmVjdCBmaWxsPSIjYzhjNTc2IiBjeD0iMzIiIGN5PSIzMiIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByPSIzMiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBzdHlsZT0iY29sb3I6ICMwMDA7IGxpbmUtaGVpZ2h0OiAxOyBmb250LWZhbWlseTogJ1JlZEhhdFRleHQnLCdPdmVycGFzcycsb3ZlcnBhc3MsaGVsdmV0aWNhLGFyaWFsLHNhbnMtc2VyaWY7ICIgZmlsbD0iIzAwMCIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI0MDAiIGR5PSIuMWVtIj5NUDwvdGV4dD48L3N2Zz4=",
+          "attributes": {},
+          "uid": "690668e0e4a12611a672f17bd8a32d4a6a1194064d73269346acbe5955d049d3",
+          "path": "goauthentik.io/sources/app-scim",
+          "type": "internal",
+          "uuid": "8b44fd3e-2dd4-45f1-94a4-035e129df562",
+          "password_change_date": "2026-11-17T19:54:16.138238Z",
+          "last_updated": "2026-11-17T19:54:16.138242Z"
+        },
+        {
+          "pk": 13,
+          "username": "m90011",
+          "name": "m0-probe-dept",
+          "is_active": true,
+          "last_login": null,
+          "date_joined": "2026-11-17T19:55:46.327799Z",
+          "is_superuser": false,
+          "groups": [],
+          "groups_obj": [],
+          "roles": [],
+          "roles_obj": [],
+          "email": "m90011@example.org",
+          "avatar": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NHB4IiBoZWlnaHQ9IjY0cHgiIHZpZXdCb3g9IjAgMCA2NCA2NCIgdmVyc2lvbj0iMS4xIj48cmVjdCBmaWxsPSIjMzc2NDM3IiBjeD0iMzIiIGN5PSIzMiIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByPSIzMiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBzdHlsZT0iY29sb3I6ICNmZmY7IGxpbmUtaGVpZ2h0OiAxOyBmb250LWZhbWlseTogJ1JlZEhhdFRleHQnLCdPdmVycGFzcycsb3ZlcnBhc3MsaGVsdmV0aWNhLGFyaWFsLHNhbnMtc2VyaWY7ICIgZmlsbD0iI2ZmZiIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI0MDAiIGR5PSIuMWVtIj5NMDwvdGV4dD48L3N2Zz4=",
+          "attributes": {},
+          "uid": "f353eb9259512cce11a113d72d2eab884fef4e8ab2d1f6f6eca0c5b9b82c26a0",
+          "path": "goauthentik.io/sources/app-scim",
+          "type": "internal",
+          "uuid": "5a67faa1-84a1-4754-b67f-bfa3701d89a6",
+          "password_change_date": "2026-11-17T19:55:46.328737Z",
+          "last_updated": "2026-11-17T19:55:46.328740Z"
+        },
+        {
+          "pk": 10,
+          "username": "m90020",
+          "name": "No Email",
+          "is_active": true,
+          "last_login": null,
+          "date_joined": "2026-11-17T19:54:16.434171Z",
+          "is_superuser": false,
+          "groups": [],
+          "groups_obj": [],
+          "roles": [],
+          "roles_obj": [],
+          "email": "",
+          "avatar": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NHB4IiBoZWlnaHQ9IjY0cHgiIHZpZXdCb3g9IjAgMCA2NCA2NCIgdmVyc2lvbj0iMS4xIj48cmVjdCBmaWxsPSIjNjZiMzgwIiBjeD0iMzIiIGN5PSIzMiIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByPSIzMiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBzdHlsZT0iY29sb3I6ICNmZmY7IGxpbmUtaGVpZ2h0OiAxOyBmb250LWZhbWlseTogJ1JlZEhhdFRleHQnLCdPdmVycGFzcycsb3ZlcnBhc3MsaGVsdmV0aWNhLGFyaWFsLHNhbnMtc2VyaWY7ICIgZmlsbD0iI2ZmZiIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI0MDAiIGR5PSIuMWVtIj5ORTwvdGV4dD48L3N2Zz4=",
+          "attributes": {},
+          "uid": "24605c455d38163764002d160473f69213c9e7703c1f55955760494a4333889e",
+          "path": "goauthentik.io/sources/app-scim",
+          "type": "internal",
+          "uuid": "c0593f40-f780-461d-adbe-d72206226a22",
+          "password_change_date": "2026-11-17T19:54:16.434932Z",
+          "last_updated": "2026-11-17T19:54:16.434935Z"
+        },
+        {
+          "pk": 12,
+          "username": "m90040",
+          "name": "Zoë Müller-Schäfer 田中太郎",
+          "is_active": true,
+          "last_login": null,
+          "date_joined": "2026-11-17T19:54:17.079180Z",
+          "is_superuser": false,
+          "groups": [],
+          "groups_obj": [],
+          "roles": [],
+          "roles_obj": [],
+          "email": "m90040@example.org",
+          "avatar": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NHB4IiBoZWlnaHQ9IjY0cHgiIHZpZXdCb3g9IjAgMCA2NCA2NCIgdmVyc2lvbj0iMS4xIj48cmVjdCBmaWxsPSIjYTMzY2M4IiBjeD0iMzIiIGN5PSIzMiIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByPSIzMiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBzdHlsZT0iY29sb3I6ICNmZmY7IGxpbmUtaGVpZ2h0OiAxOyBmb250LWZhbWlseTogJ1JlZEhhdFRleHQnLCdPdmVycGFzcycsb3ZlcnBhc3MsaGVsdmV0aWNhLGFyaWFsLHNhbnMtc2VyaWY7ICIgZmlsbD0iI2ZmZiIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI0MDAiIGR5PSIuMWVtIj5aJiMzMDAwMDs8L3RleHQ+PC9zdmc+",
+          "attributes": {},
+          "uid": "706ca357edc6950fd7c876d9a42591a92769fdcc62bf2ca5aa621e979ff91a4c",
+          "path": "goauthentik.io/sources/app-scim",
+          "type": "internal",
+          "uuid": "6d2e0de1-7e0d-47ff-a695-67e7a69565d0",
+          "password_change_date": "2026-11-17T19:54:17.079987Z",
+          "last_updated": "2026-11-17T19:54:17.079990Z"
+        },
+        {
+          "pk": 14,
+          "username": "m90050",
+          "name": "m0-live-dept",
+          "is_active": true,
+          "last_login": null,
+          "date_joined": "2026-11-17T20:03:03.114879Z",
+          "is_superuser": false,
+          "groups": [],
+          "groups_obj": [],
+          "roles": [],
+          "roles_obj": [],
+          "email": "m90050@example.org",
+          "avatar": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NHB4IiBoZWlnaHQ9IjY0cHgiIHZpZXdCb3g9IjAgMCA2NCA2NCIgdmVyc2lvbj0iMS4xIj48cmVjdCBmaWxsPSIjMzc4ODM3IiBjeD0iMzIiIGN5PSIzMiIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByPSIzMiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBzdHlsZT0iY29sb3I6ICNmZmY7IGxpbmUtaGVpZ2h0OiAxOyBmb250LWZhbWlseTogJ1JlZEhhdFRleHQnLCdPdmVycGFzcycsb3ZlcnBhc3MsaGVsdmV0aWNhLGFyaWFsLHNhbnMtc2VyaWY7ICIgZmlsbD0iI2ZmZiIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI0MDAiIGR5PSIuMWVtIj5NMDwvdGV4dD48L3N2Zz4=",
+          "attributes": {},
+          "uid": "de8808b151e09171fb02cba43b2d4cf96060266e9fc1fee7ac028b44cfd3a6a4",
+          "path": "goauthentik.io/sources/app-scim",
+          "type": "internal",
+          "uuid": "76b57507-52d4-4b5c-8b4a-8eeafe065867",
+          "password_change_date": "2026-11-17T20:03:03.115901Z",
+          "last_updated": "2026-11-17T20:03:03.115904Z"
+        }
+      ],
+      "autocomplete": {
+        "current_model": "authentik_core.user",
+        "models": {
+          "authentik_core.user": {
+            "username": {
+              "type": "str",
+              "nullable": false,
+              "options": null
+            },
+            "name": {
+              "type": "str",
+              "nullable": false,
+              "options": null
+            },
+            "email": {
+              "type": "str",
+              "nullable": false,
+              "options": null
+            },
+            "path": {
+              "type": "str",
+              "nullable": false,
+              "options": null
+            },
+            "is_active": {
+              "type": "bool",
+              "nullable": true,
+              "options": null
+            },
+            "type": {
+              "type": "str",
+              "nullable": false,
+              "options": [
+                "internal",
+                "external",
+                "service_account",
+                "internal_service_account"
+              ]
+            },
+            "attributes": {
+              "type": "relation",
+              "nullable": false,
+              "options": null,
+              "relation": "authentik_core.user_attributes"
+            }
+          },
+          "authentik_core.user_attributes": {}
+        }
+      }
+    }
+  }
+}

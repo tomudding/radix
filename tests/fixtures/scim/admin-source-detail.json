@@ -1,0 +1,66 @@
+{
+  "scenario": "admin-source-detail",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:9000/api/v3/sources/scim/app-scim/",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "pk": "432791aa-7286-467a-94c1-4335737ef571",
+      "name": "Radix (SCIM)",
+      "slug": "app-scim",
+      "enabled": true,
+      "user_property_mappings": [],
+      "group_property_mappings": [],
+      "component": "ak-source-scim-form",
+      "verbose_name": "SCIM Source",
+      "verbose_name_plural": "SCIM Sources",
+      "meta_model_name": "authentik_sources_scim.scimsource",
+      "managed": null,
+      "user_path_template": "goauthentik.io/sources/%(slug)s",
+      "root_url": "http://localhost:9000/source/scim/app-scim/v2",
+      "token_obj": {
+        "pk": "d41ebc23-8ecc-482d-8e02-867c91448cd4",
+        "managed": "goauthentik.io/sources/scim/432791aa-7286-467a-94c1-4335737ef571",
+        "identifier": "ak-source-scim-432791aa-7286-467a-94c1-4335737ef571",
+        "intent": "api",
+        "user": 6,
+        "user_obj": {
+          "pk": 6,
+          "username": "ak-source-scim-432791aa-7286-467a-94c1-4335737ef571",
+          "name": "SCIM Source Radix (SCIM) Service-Account",
+          "is_active": true,
+          "last_login": null,
+          "date_joined": "2026-11-17T19:45:05.384509Z",
+          "is_superuser": false,
+          "groups": [],
+          "groups_obj": [],
+          "roles": [],
+          "roles_obj": [],
+          "email": "",
+          "avatar": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NHB4IiBoZWlnaHQ9IjY0cHgiIHZpZXdCb3g9IjAgMCA2NCA2NCIgdmVyc2lvbj0iMS4xIj48cmVjdCBmaWxsPSIjNDc1NThiIiBjeD0iMzIiIGN5PSIzMiIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByPSIzMiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBzdHlsZT0iY29sb3I6ICNmZmY7IGxpbmUtaGVpZ2h0OiAxOyBmb250LWZhbWlseTogJ1JlZEhhdFRleHQnLCdPdmVycGFzcycsb3ZlcnBhc3MsaGVsdmV0aWNhLGFyaWFsLHNhbnMtc2VyaWY7ICIgZmlsbD0iI2ZmZiIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI0MDAiIGR5PSIuMWVtIj5TUzwvdGV4dD48L3N2Zz4=",
+          "attributes": {},
+          "uid": "12a58fa93a0405d57edaa25dbcdb72f328e0b6b6bdec7a42d1945bce2f29ced0",
+          "path": "goauthentik.io/sources/scim",
+          "type": "internal_service_account",
+          "uuid": "6e472e35-4922-403b-a2db-518c942b2875",
+          "password_change_date": "2026-11-17T19:45:05.384616Z",
+          "last_updated": "2026-11-17T19:45:07.889069Z"
+        },
+        "description": "",
+        "expires": null,
+        "expiring": false
+      }
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "scenario": "discovery-service-provider-config",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/ServiceProviderConfig",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/scim+json"
+    },
+    "body": {
+      "schemas": [
+        "urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"
+      ],
+      "authenticationSchemes": [
+        {
+          "type": "oauthbearertoken",
+          "name": "OAuth Bearer Token",
+          "description": "Authentication scheme using the OAuth Bearer Token Standard",
+          "primary": true
+        }
+      ],
+      "patch": {
+        "supported": true
+      },
+      "bulk": {
+        "supported": false,
+        "maxOperations": 0,
+        "maxPayloadSize": 0
+      },
+      "filter": {
+        "supported": true,
+        "maxResults": 20
+      },
+      "changePassword": {
+        "supported": false
+      },
+      "sort": {
+        "supported": false
+      },
+      "etag": {
+        "supported": false
+      }
+    }
+  }
+}

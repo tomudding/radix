@@ -1,0 +1,61 @@
+{
+  "scenario": "user-filter-username-eq",
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/Users?filter=userName%20eq%20%22m90001%22",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/scim+json"
+    },
+    "body": {
+      "totalResults": 1,
+      "itemsPerPage": 20,
+      "startIndex": 1,
+      "schemas": [
+        "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+      ],
+      "Resources": [
+        {
+          "userName": "m90001",
+          "id": "dae85780-363a-4e16-9cba-49ddc95621c0",
+          "name": {
+            "formatted": "SCIM Probe",
+            "familyName": "Probe",
+            "givenName": "SCIM"
+          },
+          "displayName": "SCIM Probe",
+          "active": true,
+          "emails": [
+            {
+              "value": "m90001@example.org",
+              "type": "work",
+              "primary": true
+            }
+          ],
+          "schemas": [
+            "urn:ietf:params:scim:schemas:core:2.0:User",
+            "urn:scim:schemas:extension:enterprise:2.0"
+          ],
+          "externalId": "90001",
+          "meta": {
+            "resourceType": "User",
+            "created": "2026-11-17T19:50:31.154761Z",
+            "lastModified": "2026-11-17T19:50:31.175313Z",
+            "location": "http://localhost:9000/source/scim/app-scim/v2/Users/dae85780-363a-4e16-9cba-49ddc95621c0"
+          },
+          "urn:scim:schemas:extension:enterprise:2.0:User": {
+            "department": "ordinary"
+          }
+        }
+      ]
+    }
+  }
+}

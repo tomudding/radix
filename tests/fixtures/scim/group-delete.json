@@ -1,0 +1,19 @@
+{
+  "scenario": "group-delete",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "DELETE",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/Groups/24dc6324-5296-4bd1-8c47-0671978126d0",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 204,
+    "headers": {},
+    "body": null
+  }
+}

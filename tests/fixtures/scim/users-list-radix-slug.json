@@ -1,0 +1,220 @@
+{
+  "scenario": "users-list-radix-slug",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:9000/source/scim/radix/v2/Users?count=10",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/scim+json"
+    },
+    "body": {
+      "totalResults": 7,
+      "itemsPerPage": 20,
+      "startIndex": 1,
+      "schemas": [
+        "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+      ],
+      "Resources": [
+        {
+          "userName": "m90040",
+          "id": "6d2e0de1-7e0d-47ff-a695-67e7a69565d0",
+          "name": {
+            "formatted": "Zoë Müller-Schäfer 田中太郎",
+            "familyName": "Müller-Schäfer 田中太郎",
+            "givenName": "Zoë"
+          },
+          "displayName": "Zoë Müller-Schäfer 田中太郎",
+          "active": true,
+          "emails": [
+            {
+              "value": "m90040@example.org",
+              "type": "work",
+              "primary": true
+            }
+          ],
+          "schemas": [
+            "urn:ietf:params:scim:schemas:core:2.0:User"
+          ],
+          "externalId": "90040",
+          "meta": {
+            "resourceType": "User",
+            "created": "2026-11-17T19:54:17.079180Z",
+            "lastModified": "2026-11-17T19:54:17.100408Z",
+            "location": "http://localhost:9000/source/scim/radix/v2/Users/6d2e0de1-7e0d-47ff-a695-67e7a69565d0"
+          }
+        },
+        {
+          "userName": "m90010",
+          "id": "8b44fd3e-2dd4-45f1-94a4-035e129df562",
+          "name": {
+            "formatted": "Mapping Probe"
+          },
+          "displayName": "Mapping Probe",
+          "active": true,
+          "emails": [
+            {
+              "value": "m90010@example.org",
+              "type": "work",
+              "primary": true
+            }
+          ],
+          "schemas": [
+            "urn:ietf:params:scim:schemas:core:2.0:User",
+            "urn:scim:schemas:extension:enterprise:2.0"
+          ],
+          "externalId": "90010",
+          "meta": {
+            "resourceType": "User",
+            "created": "2026-11-17T19:54:16.137494Z",
+            "lastModified": "2026-11-17T19:54:16.156378Z",
+            "location": "http://localhost:9000/source/scim/radix/v2/Users/8b44fd3e-2dd4-45f1-94a4-035e129df562"
+          },
+          "urn:scim:schemas:extension:enterprise:2.0:User": {
+            "department": "m0-probe-dept"
+          }
+        },
+        {
+          "userName": "m90001",
+          "id": "2f7ada72-bf82-4aea-8d65-3435a3686b58",
+          "name": {
+            "formatted": "SCIM Probe Reborn"
+          },
+          "displayName": "SCIM Probe Reborn",
+          "active": true,
+          "emails": [
+            {
+              "value": "m90001@example.org",
+              "type": "work",
+              "primary": true
+            }
+          ],
+          "schemas": [
+            "urn:ietf:params:scim:schemas:core:2.0:User"
+          ],
+          "externalId": "90001",
+          "meta": {
+            "resourceType": "User",
+            "created": "2026-11-17T20:04:11.683156Z",
+            "lastModified": "2026-11-17T20:04:11.701333Z",
+            "location": "http://localhost:9000/source/scim/radix/v2/Users/2f7ada72-bf82-4aea-8d65-3435a3686b58"
+          }
+        },
+        {
+          "userName": "m90050",
+          "id": "76b57507-52d4-4b5c-8b4a-8eeafe065867",
+          "name": {
+            "formatted": "Live Mapping"
+          },
+          "displayName": "m0-live-dept",
+          "active": true,
+          "emails": [
+            {
+              "value": "m90050@example.org",
+              "type": "work",
+              "primary": true
+            }
+          ],
+          "schemas": [
+            "urn:ietf:params:scim:schemas:core:2.0:User",
+            "urn:scim:schemas:extension:enterprise:2.0"
+          ],
+          "externalId": "90050",
+          "meta": {
+            "resourceType": "User",
+            "created": "2026-11-17T20:03:03.114879Z",
+            "lastModified": "2026-11-17T20:03:03.134292Z",
+            "location": "http://localhost:9000/source/scim/radix/v2/Users/76b57507-52d4-4b5c-8b4a-8eeafe065867"
+          },
+          "urn:scim:schemas:extension:enterprise:2.0:User": {
+            "department": "m0-live-dept"
+          }
+        },
+        {
+          "userName": "m90020",
+          "id": "c0593f40-f780-461d-adbe-d72206226a22",
+          "name": {
+            "formatted": "No Email"
+          },
+          "displayName": "No Email",
+          "active": true,
+          "emails": [],
+          "schemas": [
+            "urn:ietf:params:scim:schemas:core:2.0:User"
+          ],
+          "externalId": "90020",
+          "meta": {
+            "resourceType": "User",
+            "created": "2026-11-17T19:54:16.434171Z",
+            "lastModified": "2026-11-17T19:54:16.455961Z",
+            "location": "http://localhost:9000/source/scim/radix/v2/Users/c0593f40-f780-461d-adbe-d72206226a22"
+          }
+        },
+        {
+          "userName": "m90011",
+          "id": "5a67faa1-84a1-4754-b67f-bfa3701d89a6",
+          "name": {
+            "formatted": "Mapping Probe"
+          },
+          "displayName": "m0-probe-dept",
+          "active": true,
+          "emails": [
+            {
+              "value": "m90011@example.org",
+              "type": "work",
+              "primary": true
+            }
+          ],
+          "schemas": [
+            "urn:ietf:params:scim:schemas:core:2.0:User",
+            "urn:scim:schemas:extension:enterprise:2.0"
+          ],
+          "externalId": "90011",
+          "meta": {
+            "resourceType": "User",
+            "created": "2026-11-17T19:55:46.327799Z",
+            "lastModified": "2026-11-17T19:55:46.347512Z",
+            "location": "http://localhost:9000/source/scim/radix/v2/Users/5a67faa1-84a1-4754-b67f-bfa3701d89a6"
+          },
+          "urn:scim:schemas:extension:enterprise:2.0:User": {
+            "department": "m0-probe-dept"
+          }
+        },
+        {
+          "userName": "m-probe-admin",
+          "id": "bb15652d-58c7-4402-8188-e55e49639449",
+          "name": {
+            "formatted": "Adopted Name"
+          },
+          "displayName": "Adopted Name",
+          "active": true,
+          "emails": [
+            {
+              "value": "adopted@example.org",
+              "type": "work",
+              "primary": true
+            }
+          ],
+          "schemas": [
+            "urn:ietf:params:scim:schemas:core:2.0:User"
+          ],
+          "externalId": "90030",
+          "meta": {
+            "resourceType": "User",
+            "created": "2026-11-17T19:54:16.510706Z",
+            "lastModified": "2026-11-17T19:54:16.809497Z",
+            "location": "http://localhost:9000/source/scim/radix/v2/Users/bb15652d-58c7-4402-8188-e55e49639449"
+          }
+        }
+      ]
+    }
+  }
+}

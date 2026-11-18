@@ -1,0 +1,22 @@
+{
+  "scenario": "admin-user-list-verification-intent-token-403",
+  "authentik_version": "2026.8",
+  "note": "A Token row created with the model default intent 'verification' is rejected by the admin API; the SCIM source's own token carries intent 'api'. The M6 bootstrap token sets intent 'api'.",
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:9000/api/v3/core/users/?username=akadmin",
+    "headers": {
+      "Authorization": "Bearer <redacted-verification-intent-token>"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 403,
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "detail": "Token invalid/expired"
+    }
+  }
+}

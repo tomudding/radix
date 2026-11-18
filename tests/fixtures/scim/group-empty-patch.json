@@ -1,0 +1,29 @@
+{
+  "request": {
+    "method": "PATCH",
+    "url": "…/source/scim/radix/v2/Groups/8d13ad69-2e4c-4f58-85a7-7b3a24274271",
+    "headers": {
+      "Authorization": "Bearer <redacted>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": {
+      "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+      "Operations": []
+    }
+  },
+  "status": 200,
+  "response": {
+    "id": "8d13ad69-2e4c-4f58-85a7-7b3a24274271",
+    "displayName": "probe-empty-patch",
+    "members": [],
+    "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
+    "externalId": "6",
+    "meta": {
+      "resourceType": "Group",
+      "lastModified": "2026-11-18T07:26:15.951068Z",
+      "location": "http://localhost:9000/source/scim/radix/v2/Groups/8d13ad69-2e4c-4f58-85a7-7b3a24274271"
+    }
+  },
+  "notes": "Group created for the probe the same minute (POST /Groups, displayName probe-empty-patch, externalId 6); deleted after the probe (DELETE, 204). The group's membership was empty, so the members array is trivially correct; the point of the probe is that an Operations:[] PATCH is not rejected and that the response carries the current resource."
+}

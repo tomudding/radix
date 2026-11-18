@@ -1,0 +1,41 @@
+{
+  "scenario": "admin-user-check-m-probe-admin",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:9000/api/v3/core/users/11/",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "pk": 11,
+      "username": "m-probe-admin",
+      "name": "Adopted Name",
+      "is_active": true,
+      "last_login": null,
+      "date_joined": "2026-11-17T19:54:16.510706Z",
+      "is_superuser": false,
+      "groups": [],
+      "groups_obj": [],
+      "roles": [],
+      "roles_obj": [],
+      "email": "adopted@example.org",
+      "avatar": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NHB4IiBoZWlnaHQ9IjY0cHgiIHZpZXdCb3g9IjAgMCA2NCA2NCIgdmVyc2lvbj0iMS4xIj48cmVjdCBmaWxsPSIjMzdiNmFjIiBjeD0iMzIiIGN5PSIzMiIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByPSIzMiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBzdHlsZT0iY29sb3I6ICNmZmY7IGxpbmUtaGVpZ2h0OiAxOyBmb250LWZhbWlseTogJ1JlZEhhdFRleHQnLCdPdmVycGFzcycsb3ZlcnBhc3MsaGVsdmV0aWNhLGFyaWFsLHNhbnMtc2VyaWY7ICIgZmlsbD0iI2ZmZiIgYWxpZ25tZW50LWJhc2VsaW5lPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMjgiIGZvbnQtd2VpZ2h0PSI0MDAiIGR5PSIuMWVtIj5BTjwvdGV4dD48L3N2Zz4=",
+      "attributes": {},
+      "uid": "5b74faef3f4c27d9e89debd3d7d84869d42b01e8634c7a5e5033f1544efa4f9e",
+      "path": "goauthentik.io/sources/app-scim",
+      "type": "internal",
+      "uuid": "bb15652d-58c7-4402-8188-e55e49639449",
+      "password_change_date": "2026-11-17T19:54:16.510888Z",
+      "last_updated": "2026-11-17T19:54:16.788575Z"
+    }
+  }
+}

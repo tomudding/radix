@@ -1,0 +1,106 @@
+{
+  "scenario": "discovery-resource-types",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/ResourceTypes",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/scim+json"
+    },
+    "body": {
+      "schemas": [
+        "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+      ],
+      "totalResults": 5,
+      "itemsPerPage": 5,
+      "startIndex": 1,
+      "Resources": [
+        {
+          "id": "ServiceProviderConfig",
+          "name": "ServiceProviderConfig",
+          "description": "the service providers configuration",
+          "endpoint": "/ServiceProviderConfig",
+          "schema": "urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig",
+          "schemas": [
+            "urn:ietf:params:scim:schemas:core:2.0:ResourceType"
+          ],
+          "meta": {
+            "resourceType": "ResourceType",
+            "location": "http://localhost:9000/source/scim/app-scim/v2/ResourceTypes/ServiceProviderConfig"
+          }
+        },
+        {
+          "id": "ResourceType",
+          "name": "ResourceType",
+          "description": "ResourceType",
+          "endpoint": "/ResourceTypes",
+          "schema": "urn:ietf:params:scim:schemas:core:2.0:ResourceType",
+          "schemas": [
+            "urn:ietf:params:scim:schemas:core:2.0:ResourceType"
+          ],
+          "meta": {
+            "resourceType": "ResourceType",
+            "location": "http://localhost:9000/source/scim/app-scim/v2/ResourceTypes/ResourceType"
+          }
+        },
+        {
+          "id": "Schema",
+          "name": "Schema",
+          "description": "Schema endpoint description",
+          "endpoint": "/Schemas",
+          "schema": "urn:ietf:params:scim:schemas:core:2.0:Schema",
+          "schemas": [
+            "urn:ietf:params:scim:schemas:core:2.0:ResourceType"
+          ],
+          "meta": {
+            "resourceType": "ResourceType",
+            "location": "http://localhost:9000/source/scim/app-scim/v2/ResourceTypes/Schema"
+          }
+        },
+        {
+          "id": "User",
+          "name": "User",
+          "endpoint": "/Users",
+          "description": "https://tools.ietf.org/html/rfc7643#section-8.7.1",
+          "schemas": [
+            "urn:ietf:params:scim:schemas:core:2.0:ResourceType"
+          ],
+          "schema": "urn:ietf:params:scim:schemas:core:2.0:User",
+          "schemaExtensions": [
+            {
+              "schema": "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
+              "required": true
+            }
+          ],
+          "meta": {
+            "location": "http://localhost:9000/source/scim/app-scim/v2/ResourceTypes/User",
+            "resourceType": "ResourceType"
+          }
+        },
+        {
+          "id": "Group",
+          "name": "Group",
+          "description": "Group",
+          "endpoint": "/Groups",
+          "schema": "urn:ietf:params:scim:schemas:core:2.0:Group",
+          "schemas": [
+            "urn:ietf:params:scim:schemas:core:2.0:ResourceType"
+          ],
+          "meta": {
+            "resourceType": "ResourceType",
+            "location": "http://localhost:9000/source/scim/app-scim/v2/ResourceTypes/Group"
+          }
+        }
+      ]
+    }
+  }
+}

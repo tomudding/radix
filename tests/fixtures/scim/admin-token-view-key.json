@@ -1,0 +1,22 @@
+{
+  "scenario": "admin-token-view-key",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:9000/api/v3/core/tokens/ak-source-scim-432791aa-7286-467a-94c1-4335737ef571/view_key/",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "key": "<redacted-token>"
+    }
+  }
+}
