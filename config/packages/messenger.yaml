@@ -61,6 +61,19 @@ framework:
                         type: direct
                     queues:
                         images_queue: ~
+            # Pushes to the SCIM source. A dedicated queue, so a stopped source stalls only its own
+            # messages. The retry strategy is a service: the client's exception classifies what is
+            # transient.
+            scim:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                retry_strategy:
+                    service: 'App\Service\Scim\ScimRetryStrategy'
+                options:
+                    exchange:
+                        name: scim
+                        type: direct
+                    queues:
+                        scim_queue: ~
 
             # The queues the schedule dispatches to. Only one worker ever advances a schedule (see scheduler.yaml), so
             # anything run there runs serially. `#[AsCronTask(transports: ...)]` redispatches here instead, where
@@ -149,6 +162,11 @@ framework:
             'App\Message\User\RevokeSessionsRealtimeMessage': high_priority
             # A security notice is worth little late, and it must not delay whatever raised it.
             'App\Message\User\SecurityNotificationMessage': high_priority
+            # SCIM pushes, off the request thread: a slow or stopped source must not block the
+            # user or organ page that caused them.
+            'App\Message\Scim\SyncUserMessage': scim
+            'App\Message\Scim\SyncGroupMessage': scim
+            'App\Message\Scim\SyncGroupMembershipMessage': scim
 
 when@test:
     framework:
@@ -169,4 +187,6 @@ when@test:
                 gdpr:
                     dsn: 'in-memory://'
                 maintenance:
+                    dsn: 'in-memory://'
+                scim:
                     dsn: 'in-memory://'

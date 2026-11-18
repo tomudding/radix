@@ -73,6 +73,47 @@ class OrganRepository extends ServiceEntityRepository
     }
 
     /**
+     * The active organs of one type with one name. An abrogated organ of the same name is the
+     * normal reinstatement case and stays out; a second active one is the state the SCIM group
+     * key cannot distinguish.
+     *
+     * @return Organ[]
+     */
+    public function findActiveByNameAndType(
+        OrganTypes $type,
+        string $name,
+    ): array {
+        $qb = $this->createQueryBuilder('o')
+            ->where('o.type = :type')
+            ->andWhere('o.name = :name');
+
+        $qb->andWhere($qb->expr()->orX(
+            $qb->expr()->isNull('o.abrogationDate'),
+            $qb->expr()->gt(
+                'o.abrogationDate',
+                ':now',
+            ),
+        ));
+
+        return $qb
+            ->setParameter(
+                'type',
+                $type,
+            )
+            ->setParameter(
+                'name',
+                $name,
+            )
+            ->setParameter(
+                'now',
+                new DateTimeImmutable(),
+                Types::DATETIME_IMMUTABLE,
+            )
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * @return Paginator<Organ>
      */
     public function paginateBodies(
