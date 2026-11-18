@@ -40,6 +40,18 @@ x-worker-dev-deploy: &worker_dev_deploy
             cpus: "${WORKER_CPU_LIMIT:-0}"
             memory: "${WORKER_MEMORY_LIMIT:-0}"
 
+# The environment both development Authentik containers share. The bootstrap password is read on the first
+# start only, so a password changed later in the admin UI survives a restart.
+x-authentik-environment: &authentik_environment
+    AUTHENTIK_POSTGRESQL__HOST: postgresql
+    AUTHENTIK_POSTGRESQL__NAME: "${SCIM_AUTHENTIK_DATABASE:-authentik}"
+    AUTHENTIK_POSTGRESQL__USER: "${POSTGRES_USER}"
+    AUTHENTIK_POSTGRESQL__PASSWORD: "${POSTGRES_PASSWORD}"
+    # Must stay stable across restarts, or tokens and sessions stop validating; the development default
+    # keeps a fresh checkout working without a manual generation step.
+    AUTHENTIK_SECRET_KEY: "${SCIM_AUTHENTIK_SECRET_KEY:-radix-development-only-secret-key-do-not-use-in-production}"
+    AUTHENTIK_BOOTSTRAP_PASSWORD: "${SCIM_AUTHENTIK_ADMIN_PASSWORD:-gewisauthentik}"
+
 services:
     app:
         <<: *app_development
@@ -57,6 +69,11 @@ services:
             - ./docker/app/frankenphp/Caddyfile:/etc/frankenphp/Caddyfile:ro
             - ./docker/app/frankenphp/conf.d/20-radix.dev.ini:/usr/local/etc/php/app.conf.d/20-radix.dev.ini:ro
         environment:
+            # The `app_development` anchor's environment does not reach this service: this explicit block replaces
+            # it, because a key present in the node wins over the same key from a merged anchor. Repeated here, or
+            # the application runs as production and applies production-only settings, like the TLS options for the
+            # production MariaDB.
+            APP_ENV: "dev"
             # Hot reload is two halves. `watch` restarts the workers when a watched file changes — without it the
             # kernel stays in memory and a code change does nothing until the container is restarted. `hot_reload`
             # then tells the browser to reload itself, which it does over the Mercure hub in the Caddyfile;
@@ -111,6 +128,7 @@ services:
                 limits:
                     cpus: "${IMAGE_WORKER_CPU_LIMIT:-0}"
                     memory: "${IMAGE_WORKER_MEMORY_LIMIT:-0}"
+    scim-sync-worker: *worker_dev
     scheduler-default: *worker_dev
     # One of each: a second consumer only makes the logs harder to follow. Production's counts are in compose.yaml.
     cron-worker:
@@ -366,6 +384,78 @@ services:
             MP_SMTP_BIND_ADDR: "0.0.0.0:25"
             MP_SMTP_AUTH_ACCEPT_ANY: 1
             MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    # The identity provider; radix pushes members and groups to its SCIM source. Modelled on the official
+    # compose file of the pinned version: the image tag is pinned here, state is in a named volume, only the
+    # HTTP port is published, the database is on the shared development PostgreSQL beside the ledger and
+    # Listmonk, and the Docker socket is not mounted because no outpost is deployed from here. The plain http
+    # endpoint is a development-only exception; production points at an https endpoint the client verifies in
+    # full.
+    authentik:
+        image: ghcr.io/goauthentik/server:2026.8
+        restart: unless-stopped
+        # The image's healthcheck probes its own unix socket, so the built-in HEALTHCHECK is used as is.
+        shm_size: 512mb
+        depends_on:
+            postgresql:
+                condition: service_healthy
+        # The image assumes its database exists, and the postgres volume can predate the service, so the
+        # command creates the database when it is missing and then hands over to the image's own startup,
+        # which applies the migrations on a fresh database.
+        entrypoint:
+            - sh
+            - -c
+        command:
+            - |
+                python - <<'PY'
+                import os
+                import psycopg
+                from psycopg import sql
+
+                name = os.environ['AUTHENTIK_POSTGRESQL__NAME']
+                with psycopg.connect(host=os.environ['AUTHENTIK_POSTGRESQL__HOST'],
+                                     user=os.environ['AUTHENTIK_POSTGRESQL__USER'],
+                                     password=os.environ['AUTHENTIK_POSTGRESQL__PASSWORD'], dbname='postgres',
+                                     autocommit=True) as conn:
+                    if not conn.execute('SELECT 1 FROM pg_database WHERE datname = %s', (name,)).fetchone():
+                        conn.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(name)))
+                PY
+                exec ak server
+        environment:
+            <<: *authentik_environment
+        volumes:
+            - authentik_data:/data:rw
+        networks:
+            - radix_network
+        ports:
+            # Loopback-only on the host: plain http with an admin interface. The application reaches the server
+            # by service name on the radix network.
+            - target: 9000
+              published: "${SCIM_PORT:-9000}"
+              host_ip: "127.0.0.1"
+              protocol: tcp
+    authentik-worker:
+        image: ghcr.io/goauthentik/server:2026.8
+        command: worker
+        restart: unless-stopped
+        shm_size: 512mb
+        # Behind the server's healthcheck, so the database is migrated before the worker starts; the worker
+        # then applies the blueprint that creates the SCIM source.
+        depends_on:
+            authentik:
+                condition: service_healthy
+        environment:
+            <<: *authentik_environment
+            # The blueprint below reads this variable (!Env) and pins the SCIM source's bearer token to it,
+            # so the application, which reads the same variable from `.env.local`, has the token before the
+            # first `make start`.
+            SCIM_AUTHENTIK_TOKEN: "${SCIM_AUTHENTIK_TOKEN:-dev-scim-token}"
+        volumes:
+            - authentik_data:/data:rw
+            # The worker applies every yaml under /blueprints on start; the blueprint mounted here creates the
+            # SCIM source the application pushes to and pins its token.
+            - ./docker/authentik/blueprints/radix-source.yaml:/blueprints/radix-source.yaml:ro
+        networks:
+            - radix_network
 
 ###> symfony/mercure-bundle ###
 ###< symfony/mercure-bundle ###
@@ -404,13 +494,17 @@ configs:
                 CREATE USER '${MAILMAN_DATABASE_USERNAME:-mailman}'@'%' IDENTIFIED BY '${MAILMAN_DATABASE_PASSWORD:-mailman}';
                 GRANT ALL PRIVILEGES ON `${MAILMAN_DATABASE_DBNAME:-mailman}`.* TO '${MAILMAN_DATABASE_USERNAME:-mailman}'@'%';
             EOF
-    # The database Listmonk keeps beside the ledger. The ledger's own database is the one the image creates from
-    # `POSTGRES_DB`; the test database is made by `make test-prepare`, which owns the schema in it.
+    # The databases kept beside the ledger: Listmonk's and the development Authentik's. The ledger's own database
+    # is the one the image creates from `POSTGRES_DB`; the test database is made by `make test-prepare`, which owns
+    # the schema in it. This script only runs on a fresh volume; the `authentik` service creates its database when
+    # a volume it starts from is missing it.
     init_postgres_databases:
         content: |
             psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER:-gewisdb}" <<-PGSQL
                 CREATE DATABASE ${POSTGRES_LISTMONK_DATABASE:-gewisdb_listmonk};
                 GRANT ALL PRIVILEGES ON DATABASE ${POSTGRES_LISTMONK_DATABASE:-gewisdb_listmonk} TO ${POSTGRES_USER:-gewisdb};
+                CREATE DATABASE ${SCIM_AUTHENTIK_DATABASE:-authentik};
+                GRANT ALL PRIVILEGES ON DATABASE ${SCIM_AUTHENTIK_DATABASE:-authentik} TO ${POSTGRES_USER:-gewisdb};
             PGSQL
 
 volumes:
@@ -421,3 +515,6 @@ volumes:
     mariadb_data:
     matomo:
     postgres_data:
+    # State of the development Authentik. Its database lives on the shared development PostgreSQL beside the
+    # ledger; dropping both, plus the `###> scim ###` block of `.env.local`, is how the stack is reset.
+    authentik_data:

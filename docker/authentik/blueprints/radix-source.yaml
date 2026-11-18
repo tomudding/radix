@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=https://goauthentik.io/blueprints/schema.json
+# Creates the SCIM source that radix pushes members and groups to. The worker applies every yaml under
+# /blueprints on startup, which is how this source is created on a fresh Authentik; applying the file is
+# idempotent, so a restart only reconciles.
+#
+# Saving the source triggers authentik's post-save signal, which creates the source's service account and a
+# bearer token whose identifier is derived from the source's primary key. The token entry below looks that
+# token up (!KeyOf) and pins its key to the development constant the application uses
+# (SCIM_AUTHENTIK_TOKEN, passed to the worker), so the token is known before the instance exists and the
+# stack needs no token-fetch step. The entry must reference the signal's user: the token serializer forbids
+# changing a token's user, and the signal is what set it. Pinning the key rather than creating the token
+# leaves the source pointing at its own signal token; the next worker start puts the key back if it was
+# changed in the admin UI.
+version: 1
+metadata:
+    name: radix-scim-source
+    description: SCIM source (radix) that radix pushes members and groups to
+entries:
+    - model: authentik_sources_scim.scimsource
+      id: radix-scim-source
+      identifiers:
+          slug: radix
+      attrs:
+          name: Radix (SCIM)
+          enabled: true
+          # This version has no managed-objects-only attribute on the SCIM source; a SCIM delete
+          # always removes the object. The sync never deletes from the source; deletion is a
+          # policy decision that is still pending (docs/scim/authentik-findings.md, sections 1
+          # and 10).
+    - model: authentik_core.token
+      identifiers:
+          identifier: !Format ["ak-source-scim-%s", !KeyOf radix-scim-source]
+      attrs:
+          user: !Find [authentik_core.user, [username, !Format ["ak-source-scim-%s", !KeyOf radix-scim-source]]]
+          key: !Env [SCIM_AUTHENTIK_TOKEN, dev-scim-token]
+          intent: api
+          expiring: false
