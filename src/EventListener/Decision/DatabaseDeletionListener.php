@@ -14,6 +14,7 @@ use App\Service\Decision\MeetingService;
 use App\Service\Decision\MemberService;
 use App\Service\Decision\MiscService;
 use App\Service\Decision\ProjectionState;
+use App\Service\Scim\ScimSyncDispatcher;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\PreRemoveEventArgs;
@@ -22,10 +23,8 @@ use RuntimeException;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
- * Takes out of the projection what is taken out of the ledger.
- *
- * Before the removal rather than after it, because what has to be removed from the projection is determined from the
- * entity while its relations are still readable.
+ * Takes out of the projection what is taken out of the ledger, before the removal: what has to
+ * be removed is determined from the entity while its relations are still readable.
  */
 #[AsDoctrineListener(
     event: Events::preRemove,
@@ -40,6 +39,7 @@ final class DatabaseDeletionListener
         private readonly MiscService $miscService,
         #[Autowire(service: 'doctrine.orm.web_entity_manager')]
         private readonly EntityManagerInterface $emWeb,
+        private readonly ScimSyncDispatcher $scimSync,
     ) {
     }
 
@@ -50,6 +50,7 @@ final class DatabaseDeletionListener
         }
 
         $entity = $args->getObject();
+        $scimRemovals = [];
 
         switch (true) {
             case $entity instanceof Address:
@@ -57,9 +58,14 @@ final class DatabaseDeletionListener
                 break;
 
             case $entity instanceof Member:
-                // A member any decision still names is stripped of their data rather than deleted, so what arrives
-                // here is a member the projection is free to drop; the rest of what the site stores about them is
-                // removed with the row.
+                // Only a member the projection is free to drop arrives here; a member any decision still names is
+                // stripped of their data rather than deleted. The organs are read before the deletion and the
+                // dispatch waits for the flush below, because a message a worker consumes before that commit reads
+                // the member as still current and changes nothing.
+                $scimRemovals[] = [
+                    $entity->lidnr,
+                    $this->scimSync->currentOrganIds($entity->lidnr),
+                ];
                 $this->memberService->deleteMember($entity);
                 break;
 
@@ -85,5 +91,12 @@ final class DatabaseDeletionListener
         }
 
         $this->emWeb->flush();
+
+        foreach ($scimRemovals as [$lidnr, $organIds]) {
+            $this->scimSync->memberRemoved(
+                $lidnr,
+                $organIds,
+            );
+        }
     }
 }

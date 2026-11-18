@@ -16,6 +16,7 @@ use App\Service\Decision\MemberService;
 use App\Service\Decision\MiscService;
 use App\Service\Decision\ProjectionState;
 use App\Service\Decision\SubDecisionService;
+use App\Service\Scim\ScimSyncDispatcher;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\PostPersistEventArgs;
@@ -48,6 +49,7 @@ final class DatabaseUpdateListener
         private readonly SubDecisionService $subDecisionService,
         #[Autowire(service: 'doctrine.orm.web_entity_manager')]
         private readonly EntityManagerInterface $emWeb,
+        private readonly ScimSyncDispatcher $scimSync,
     ) {
     }
 
@@ -122,5 +124,13 @@ final class DatabaseUpdateListener
         } finally {
             $this->state->endProjecting();
         }
+
+        // The projection of the write is committed; the SCIM target gets the same write as messages, which the
+        // handlers re-read from the register.
+        match (true) {
+            $entity instanceof Member => $this->scimSync->memberChanged($entity->lidnr),
+            $entity instanceof SubDecision => $this->scimSync->subDecisionChanged($entity),
+            default => null,
+        };
     }
 }

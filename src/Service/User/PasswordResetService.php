@@ -8,6 +8,7 @@ use App\Entity\User\CompanyUser;
 use App\Entity\User\PasswordReset;
 use App\Entity\User\User;
 use App\Repository\User\PasswordResetRepository;
+use App\Service\Scim\ScimSyncDispatcher;
 use DateInterval;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,6 +33,7 @@ final readonly class PasswordResetService
         #[Autowire(service: 'doctrine.orm.web_entity_manager')]
         private EntityManagerInterface $entityManager,
         private PasswordResetRepository $passwordResetRepository,
+        private ScimSyncDispatcher $scimSync,
     ) {
     }
 
@@ -78,6 +80,14 @@ final readonly class PasswordResetService
         $this->deleteAllForTarget($passwordReset);
 
         $this->entityManager->flush();
+
+        // A first activation creates the account the SCIM sync reads; the member's ledger row predates it, so the
+        // register's write never reached the target for this account.
+        if (!($target instanceof User)) {
+            return;
+        }
+
+        $this->scimSync->memberChanged($target->lidnr);
     }
 
     /**
