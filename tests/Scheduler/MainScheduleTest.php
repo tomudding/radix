@@ -51,6 +51,7 @@ class MainScheduleTest extends KernelTestCase
         'app:photo:weekly' => 'cron',
         'app:poll:anonymise-votes' => 'gdpr',
         'app:public-archive:sync' => 'cron',
+        'app:scim:reconcile' => 'maintenance',
         'app:user:prune-expired-data-exports' => 'gdpr',
         'app:user:prune-security-log' => 'gdpr',
         'app:user:prune-sudo-stashes' => 'maintenance',
