@@ -65,6 +65,20 @@ final class FakeScimClient implements ScimClientInterface
      */
     public array $listedGroups = [];
 
+    /**
+     * The remote ids passed to the deletes, in order.
+     *
+     * @var list<string>
+     */
+    public array $deletedUsers = [];
+
+    /**
+     * The remote ids passed to the deletes, in order.
+     *
+     * @var list<string>
+     */
+    public array $deletedGroups = [];
+
     public function createUser(ScimUser $user): ScimUser
     {
         $this->calls[] = 'createUser';
@@ -119,7 +133,7 @@ final class FakeScimClient implements ScimClientInterface
 
     public function deleteUser(string $remoteId): void
     {
-        $this->unused('deleteUser');
+        $this->deletedUsers[] = $remoteId;
     }
 
     /**
@@ -198,7 +212,7 @@ final class FakeScimClient implements ScimClientInterface
 
     public function deleteGroup(string $remoteId): void
     {
-        $this->unused('deleteGroup');
+        $this->deletedGroups[] = $remoteId;
     }
 
     /**

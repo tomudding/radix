@@ -45,7 +45,11 @@ help: ## Outputs this help screen
 # succeed. Listmonk identifies a list by number rather than by name, so the ids are pinned to match the fixtures.
 SEEDED_LISTS := announcements activities vacancies
 
-seed: ## Reset the development databases: drop the schemas, migrate them back up, then load the fixtures and prepare Mailman and Listmonk (run after `make start`)
+seed: ## Reset the development databases and the SCIM source: drop the schemas, migrate them back up, then load the fixtures and prepare Mailman and Listmonk (run after `make start`)
+	@# The source keeps what a previous seed pushed (nothing is ever removed by the sync), so it is
+	@# cleared first and the fixture replay starts from an empty source. The command refuses to run
+	@# under APP_ENV=prod.
+	@$(SYMFONY) app:scim:clear
 	@# Dropped rather than only purged, so migrations a branch of its own added leave nothing behind.
 	@$(SYMFONY) doctrine:schema:drop --force --full-database
 	@$(SYMFONY) doctrine:schema:drop --force --full-database --em=application
