@@ -548,6 +548,32 @@ class OrganRepository extends ServiceEntityRepository
     }
 
     /**
+     * Every body the SCIM sync page can push, active and abrogated, in alphabetical order. The
+     * foundation is joined so a row needs no per-organ lookup for the hash the select submits.
+     *
+     * @return list<Organ>
+     */
+    public function findAllForSyncSelect(): array
+    {
+        return $this->createQueryBuilder('o')
+            ->join(
+                'o.foundation',
+                'f',
+            )
+            ->addSelect('f')
+            ->orderBy(
+                'o.abbr',
+                SortDirection::Ascending,
+            )
+            ->addOrderBy(
+                'o.id',
+                SortDirection::Ascending,
+            )
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * The body a foundation hash names. The hash is the projection foundation's own identity
      * (`SubDecision\Foundation::getHash()`: `{meetingType}-{number}.{point}.{number}.{sequence}`),
      * so it is stable across the nightly projection rebuild and survives a later body reusing the

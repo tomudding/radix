@@ -288,8 +288,9 @@
                 {# What signs in against us without being a person. #}
                 {% set apiPrincipals = route starts with 'user_api_principal' %}
                 {% set externalApps = is_module_active(['user', 'adminexternalapp']) %}
+                {% set scimSync = is_module_active(['user', 'scimsync']) %}
                 {{ sidebar.section('integrations', 'fa-plug', 'Integrations'|trans,
-                    apiPrincipals or externalApps, [
+                    apiPrincipals or externalApps or scimSync, [
                     {
                         'href': path('user_api_principal_index'),
                         'label': 'API principals'|trans,
@@ -299,6 +300,11 @@
                         'href': path('admin/users/apps/index'),
                         'label': 'External apps'|trans,
                         'active': externalApps,
+                    },
+                    {
+                        'href': path('admin/scim-sync'),
+                        'label': 'SCIM sync'|trans,
+                        'active': scimSync,
                     },
                 ]) }}
 

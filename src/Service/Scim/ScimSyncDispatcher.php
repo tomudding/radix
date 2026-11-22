@@ -19,24 +19,30 @@ use App\Entity\User\Enums\ScimLocalTypes;
 use App\Message\Scim\SyncGroupMembershipMessage;
 use App\Message\Scim\SyncGroupMessage;
 use App\Message\Scim\SyncUserMessage;
+use App\Repository\User\UserRepository;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 use function sprintf;
 
 /**
- * Dispatches the SCIM sync messages for a register write, once the projection change behind it
- * has been committed. Every handler re-reads the state itself, so only identifiers travel.
+ * Dispatches the SCIM sync messages, either for a register write or on an administrator's
+ * request from the sync page. Every handler re-reads the state itself, so only identifiers
+ * travel.
  *
  * A body write dispatches the body group by its foundation hash; a board write dispatches the
  * board drops the change lands in, including the function drop of the member it names; a key
  * grant or withdrawal dispatches the fixed keyholders group. Individual per-year board groups
  * are left to the reconciliation, which enumerates every year; a dispatch only needs the
- * current and recent drops to stay current.
+ * current and recent drops to stay current. The administrator's requests reuse the same
+ * messages: a per-object sync for one body or member, or the full sweep that dispatches every
+ * user and group the projection has.
  */
 final readonly class ScimSyncDispatcher
 {
     public function __construct(
         private MessageBusInterface $messageBus,
+        private UserRepository $userRepository,
+        private ScimGroupResolver $groupResolver,
         private bool $scimEnabled,
     ) {
     }
@@ -167,6 +173,52 @@ final readonly class ScimSyncDispatcher
         }
 
         return [];
+    }
+
+    /**
+     * Syncs one body, by its foundation hash — the same identifier a body write dispatches.
+     */
+    public function syncBody(string $foundationHash): void
+    {
+        if (!$this->scimEnabled) {
+            return;
+        }
+
+        $this->messageBus->dispatch(new SyncGroupMessage(
+            ScimLocalTypes::Body,
+            $foundationHash,
+        ));
+        $this->messageBus->dispatch(new SyncGroupMembershipMessage(
+            ScimLocalTypes::Body,
+            $foundationHash,
+        ));
+    }
+
+    /**
+     * The full sweep an administrator asks for: every account and every group the projection
+     * has. The handlers skip an object whose payload is unchanged, so in-sync state costs only
+     * the reads; drift that a register write never touched is what this repairs.
+     */
+    public function syncAll(): void
+    {
+        if (!$this->scimEnabled) {
+            return;
+        }
+
+        foreach ($this->userRepository->findAll() as $user) {
+            $this->messageBus->dispatch(new SyncUserMessage($user->lidnr));
+        }
+
+        foreach ($this->groupResolver->allGroupRefs() as $ref) {
+            $this->messageBus->dispatch(new SyncGroupMessage(
+                $ref->localType,
+                $ref->localId,
+            ));
+            $this->messageBus->dispatch(new SyncGroupMembershipMessage(
+                $ref->localType,
+                $ref->localId,
+            ));
+        }
     }
 
     private function touchesBoard(SubDecision $subDecision): bool

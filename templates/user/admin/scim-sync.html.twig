@@ -1,0 +1,233 @@
+{% extends 'layout-admin.html.twig' %}
+
+{% block page_title %}{{ 'SCIM sync'|trans|page_title }}{{ parent() }}{% endblock %}
+
+{% block admin_breadcrumbs %}
+    <li class="breadcrumb-item active" aria-current="page">
+        {{ 'SCIM sync'|trans }}
+    </li>
+{% endblock %}
+
+{% block contents %}
+    {% set types = enum('App\\Entity\\User\\Enums\\ScimLocalTypes') %}
+
+    {% if not status.enabled %}
+        <div class="alert alert-warning" role="alert">
+            <strong>{{ 'SCIM sync is disabled'|trans }}</strong>
+            {{ 'The `SCIM_ENABLED` variable turns it on; while it is off, nothing is pushed and the buttons below do nothing.'|trans }}
+        </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-12">
+            <p class="text-muted">
+                {{ 'The register pushes accounts and groups to the SCIM source when they change, and the nightly reconciliation repairs whatever a write never touched. This page shows where that stands and lets you ask for a push on your own.'|trans }}
+            </p>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="panel h-100">
+                <div class="panel-heading">
+                    <h3 class="mb-0">{{ 'State'|trans }}</h3>
+                </div>
+                <div class="panel-body">
+                    <table class="table align-middle mb-0">
+                        <tbody>
+                            <tr>
+                                <th scope="row" class="w-50">{{ 'Enabled'|trans }}</th>
+                                <td>
+                                    {% if status.enabled %}
+                                        <span class="badge text-bg-success">{{ 'Yes'|trans }}</span>
+                                    {% else %}
+                                        <span class="badge text-bg-secondary">{{ 'No'|trans }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if status.baseUrl is not empty %}
+                                <tr>
+                                    <th scope="row">{{ 'Source'|trans }}</th>
+                                    <td class="text-break"><code>{{ status.baseUrl }}</code></td>
+                                </tr>
+                            {% endif %}
+                            <tr>
+                                <th scope="row">{{ 'Last push'|trans }}</th>
+                                <td>
+                                    {% if status.lastSyncedAt %}
+                                        <small>{{ status.lastSyncedAt|date('Y-m-d H:i') }}</small>
+                                    {% else %}
+                                        <small class="text-muted">{{ 'Never'|trans }}</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">{{ 'Never synced'|trans }}</th>
+                                <td>
+                                    {% if 0 == status.neverSynced %}
+                                        <small class="text-muted">0</small>
+                                    {% else %}
+                                        <span class="badge text-bg-warning">{{ status.neverSynced }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h4 class="mt-3">{{ 'Linked objects'|trans }}</h4>
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>{{ 'Kind'|trans }}</th>
+                                <th class="text-end">{{ 'Count'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>{{ 'Accounts'|trans }}</td>
+                                <td class="text-end">{{ status.counts[types.User.value] ?? 0 }}</td>
+                            </tr>
+                            <tr>
+                                <td>{{ 'Bodies'|trans }}</td>
+                                <td class="text-end">{{ status.counts[types.Body.value] ?? 0 }}</td>
+                            </tr>
+                            <tr>
+                                <td>{{ 'Boards'|trans }}</td>
+                                <td class="text-end">{{ status.counts[types.Board.value] ?? 0 }}</td>
+                            </tr>
+                            <tr>
+                                <td>{{ 'Statuses'|trans }}</td>
+                                <td class="text-end">{{ status.counts[types.Status.value] ?? 0 }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="panel h-100">
+                <div class="panel-heading">
+                    <h3 class="mb-0">{{ 'Push now'|trans }}</h3>
+                </div>
+                <div class="panel-body">
+                    {% if not status.enabled %}
+                        <p class="text-muted mb-0">{{ 'Nothing can be pushed while the sync is disabled.'|trans }}</p>
+                    {% else %}
+                        <p class="text-muted">
+                            {{ 'A push is dispatched to the worker queue and runs there; an object whose payload is unchanged is skipped. The nightly reconciliation additionally compares against what the source holds, which a push alone cannot see.'|trans }}
+                        </p>
+
+                        <form method="post" action="{{ path('admin/scim-sync/reconcile') }}" class="mb-3">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('scim_sync_all') }}">
+                            <button type="submit" class="btn btn-gewis-primary">
+                                <span class="fas fa-sync" aria-hidden="true"></span>
+                                {{ 'Sync everything'|trans }}
+                            </button>
+                        </form>
+
+                        <hr>
+
+                        <form method="post" action="{{ path('admin/scim-sync/user') }}" class="row g-2 align-items-end mb-3">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('scim_sync_user') }}">
+                            <div class="col-auto">
+                                <label for="scim-sync-lidnr" class="form-label mb-0">{{ 'Membership number'|trans }}</label>
+                                <input type="number" id="scim-sync-lidnr" name="lidnr" class="form-control" min="1" required>
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-outline-secondary">
+                                    <span class="fas fa-user" aria-hidden="true"></span>
+                                    {{ 'Sync account'|trans }}
+                                </button>
+                            </div>
+                        </form>
+
+                        <form method="post" action="{{ path('admin/scim-sync/body') }}" class="row g-2 align-items-end">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('scim_sync_body') }}">
+                            <div class="col-auto">
+                                <label for="scim-sync-body" class="form-label mb-0">{{ 'Body'|trans }}</label>
+                                <select id="scim-sync-body" name="body" class="form-select" required>
+                                    <option value="" selected disabled>{{ 'Choose a body…'|trans }}</option>
+                                    {% for organ in organs %}
+                                        <option value="{{ organ.foundation.getHash() }}">
+                                            {{ organ.abbr }} — {{ organ.name }}
+                                            {% if organ.abrogationDate %}
+                                                ({{ 'abrogated %year%'|trans({'%year%': organ.abrogationDate|date('Y')}) }})
+                                            {% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-outline-secondary">
+                                    <span class="fas fa-sitemap" aria-hidden="true"></span>
+                                    {{ 'Sync body'|trans }}
+                                </button>
+                            </div>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel mt-3">
+        <div class="panel-heading">
+            <h3 class="mb-0">{{ 'Failed pushes'|trans }}</h3>
+        </div>
+        <div class="panel-body">
+            {% if status.failing is empty %}
+                <p class="text-muted mb-0">{{ 'No push has failed. The worker records the error text here when one does.'|trans }}</p>
+            {% else %}
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>{{ 'Kind'|trans }}</th>
+                                <th>{{ 'Object'|trans }}</th>
+                                <th>{{ 'Remote id'|trans }}</th>
+                                <th>{{ 'Error'|trans }}</th>
+                                <th>{{ 'Last synced'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for failure in status.failing %}
+                                <tr>
+                                    <td>
+                                        {% if types.User == failure.localType %}
+                                            {{ 'Account'|trans }}
+                                        {% elseif types.Body == failure.localType %}
+                                            {{ 'Body'|trans }}
+                                        {% elseif types.Board == failure.localType %}
+                                            {{ 'Board'|trans }}
+                                        {% else %}
+                                            {{ 'Status'|trans }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if failure.displayName %}
+                                            <code>{{ failure.displayName }}</code>
+                                        {% elseif types.User == failure.localType %}
+                                            {{ 'Member %lidnr%'|trans({'%lidnr%': failure.localId}) }}
+                                        {% else %}
+                                            <code>{{ failure.localId }}</code>
+                                        {% endif %}
+                                    </td>
+                                    <td><code>{{ failure.remoteId }}</code></td>
+                                    <td class="text-break"><small class="text-danger">{{ failure.error }}</small></td>
+                                    <td>
+                                        {% if failure.lastSyncedAt %}
+                                            <small class="text-muted">{{ failure.lastSyncedAt|date('Y-m-d H:i') }}</small>
+                                        {% else %}
+                                            <small class="text-muted">{{ 'Never'|trans }}</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
