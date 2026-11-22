@@ -129,18 +129,19 @@ class MeetingService
 
         $num = 0;
         foreach ($meetings as $meeting) {
-            $this->generateMeeting($meeting[0]);
-            $this->emWeb->flush();
-            // Nothing generated so far is needed again by name, and keeping all of it makes every subsequent flush
-            // more expensive than the last.
-            $this->emWeb->clear();
-            ++$num;
+            // A projected meeting the replay reads back is served from the identity map while still
+            // managed and re-queried after a clear, so a periodic flush costs nothing extra; keeping
+            // everything managed makes each flush more expensive.
+            if (0 === $num++ % 20) {
+                $this->emWeb->flush();
+                $this->emWeb->clear();
 
-            if (null === $onProgress) {
-                continue;
+                if (null !== $onProgress) {
+                    $onProgress($num, $total);
+                }
             }
 
-            $onProgress($num, $total);
+            $this->generateMeeting($meeting[0]);
         }
 
         $this->linkCounterparts();
