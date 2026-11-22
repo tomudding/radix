@@ -104,7 +104,8 @@ phpstan-pr: ## Regenerate the baseline against main, then analyse this branch ag
 
 test: ## Start tests with phpunit, pass the parameter "c=" to add options to phpunit, example: make test c="--stop-on-failure" (browser tests: make test-browser)
 	@$(eval c ?=)
-	@$(DOCKER_COMP) exec -T -e APP_ENV=test app bin/phpunit $(c)
+	# The authentik group points at a live source and is run through `make test-authentik`.
+	@$(DOCKER_COMP) exec -T -e APP_ENV=test app bin/phpunit --exclude-group authentik $(c)
 
 # The server the browser drives uses a connection of its own, outside the transaction every other test is rolled
 # back with, so signing in leaves security events behind that the rest of the suite counts. The seed is put back when
@@ -117,7 +118,21 @@ test-browser: ## Run the browser tests, which drive Chromium against a server of
 		exit $$status
 
 test-coverage: ## Run the tests and write an HTML coverage report to ./coverage
-	@$(DOCKER_COMP) exec -T -e APP_ENV=test -e XDEBUG_MODE=coverage app bin/phpunit --coverage-html ./coverage
+	@$(DOCKER_COMP) exec -T -e APP_ENV=test -e XDEBUG_MODE=coverage app bin/phpunit --exclude-group authentik --coverage-html ./coverage
+
+# The authentik group points at a live source and deletes what it creates, so the endpoint and both tokens come from
+# `.env.local` (which `make start` fills from the dist file) and are passed as real environment variables, which the
+# test bootstrap does not override with the dummies of `.env.test`.
+test-authentik: ## Run the SCIM integration tests (group authentik) against the local source; make start first
+	@$(eval c ?=)
+	@BASE=$$(sed -n 's/^SCIM_AUTHENTIK_BASE_URL=//p' .env.local | tail -1 | tr -d '"'); \
+	TOKEN=$$(sed -n 's/^SCIM_AUTHENTIK_TOKEN=//p' .env.local | tail -1 | tr -d '"'); \
+	ADMIN_TOKEN=$$(sed -n 's/^SCIM_AUTHENTIK_ADMIN_TOKEN=//p' .env.local | tail -1 | tr -d '"'); \
+	if [ -z "$$BASE" ] || [ -z "$$TOKEN" ] || [ -z "$$ADMIN_TOKEN" ]; then \
+		echo "SCIM_AUTHENTIK_BASE_URL, SCIM_AUTHENTIK_TOKEN or SCIM_AUTHENTIK_ADMIN_TOKEN is missing from .env.local; run make start first." >&2; \
+		exit 1; \
+	fi; \
+	$(DOCKER_COMP) exec -T -e APP_ENV=test -e SCIM_AUTHENTIK_BASE_URL="$$BASE" -e SCIM_AUTHENTIK_TOKEN="$$TOKEN" -e SCIM_AUTHENTIK_ADMIN_TOKEN="$$ADMIN_TOKEN" app bin/phpunit --group authentik $(c)
 
 # The schemas are built from the mapping metadata rather than by the migrations: what the tests run against is what
 # the entities say, and the migrations are checked separately by the migration workflow. The projection is filled by
