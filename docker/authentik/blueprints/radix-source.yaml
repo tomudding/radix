@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://goauthentik.io/blueprints/schema.json
+# Creates the SCIM source radix pushes to; the worker applies the file on start, idempotently.
+#
+# Saving the source triggers a post-save signal that creates the source's service account and a bearer
+# token. The token entry pins that token's key to SCIM_AUTHENTIK_TOKEN (!KeyOf + !Env), so the
+# application has it before the instance exists. The entry must reference the signal's user: the token
+# serializer forbids changing a token's user, and the signal is what set it.
+version: 1
+metadata:
+    name: radix-scim-source
+    description: SCIM source (radix) that radix pushes members and groups to
+entries:
+    - model: authentik_sources_scim.scimsource
+      id: radix-scim-source
+      identifiers:
+          slug: radix
+      attrs:
+          name: Radix (SCIM)
+          enabled: true
+          # This version has no managed-objects-only attribute on the SCIM source; a SCIM delete always removes
+          # the object, and nothing in this project ever calls it.
+    - model: authentik_core.token
+      identifiers:
+          identifier: !Format ["ak-source-scim-%s", !KeyOf radix-scim-source]
+      attrs:
+          user: !Find [authentik_core.user, [username, !Format ["ak-source-scim-%s", !KeyOf radix-scim-source]]]
+          key: !Env [SCIM_AUTHENTIK_TOKEN, dev-scim-token]
+          intent: api
+          expiring: false
+    # For the integration tests, which read the instance's own admin through the admin API: the SCIM
+    # token's service account cannot. Belongs to the bootstrap admin, pinned the same way as the SCIM token.
+    - model: authentik_core.token
+      identifiers:
+          identifier: radix-scim-integration-tests
+      attrs:
+          user: !Find [authentik_core.user, [username, akadmin]]
+          key: !Env [SCIM_AUTHENTIK_ADMIN_TOKEN, dev-scim-admin-token]
+          intent: api
+          expiring: false

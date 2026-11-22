@@ -38,6 +38,16 @@ x-worker-dev-deploy: &worker_dev_deploy
             cpus: "${WORKER_CPU_LIMIT:-0}"
             memory: "${WORKER_MEMORY_LIMIT:-0}"
 
+# The bootstrap password is read on the first start only; a password changed later in the admin UI survives.
+x-authentik-environment: &authentik_environment
+    AUTHENTIK_POSTGRESQL__HOST: postgresql
+    AUTHENTIK_POSTGRESQL__NAME: "${SCIM_AUTHENTIK_DATABASE:-radixdev_authentik}"
+    AUTHENTIK_POSTGRESQL__USER: "${POSTGRES_USER}"
+    AUTHENTIK_POSTGRESQL__PASSWORD: "${POSTGRES_PASSWORD}"
+    # Stable across restarts, or tokens and sessions stop validating.
+    AUTHENTIK_SECRET_KEY: "${SCIM_AUTHENTIK_SECRET_KEY:-radix-development-only-secret-key}"
+    AUTHENTIK_BOOTSTRAP_PASSWORD: "${SCIM_AUTHENTIK_ADMIN_PASSWORD:-gewisauthentik}"
+
 services:
     app:
         <<: *app_development
@@ -300,6 +310,69 @@ services:
             MP_SMTP_BIND_ADDR: "0.0.0.0:25"
             MP_SMTP_AUTH_ACCEPT_ANY: 1
             MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    # The identity provider radix pushes to. The entrypoint creates its database when missing
+    # (init_postgres_databases runs on a fresh volume only); the worker applies the blueprint that creates
+    # the SCIM source.
+    authentik:
+        image: ghcr.io/goauthentik/server:2026.8
+        restart: unless-stopped
+        # The image's healthcheck probes its own unix socket, so the built-in HEALTHCHECK is used as is.
+        shm_size: 512mb
+        depends_on:
+            postgresql:
+                condition: service_healthy
+        # The image's entrypoint is the `ak` wrapper, so a one-shot shell step has to replace it.
+        entrypoint:
+            - sh
+            - -c
+        command:
+            - |
+                python - <<'PY'
+                import os
+                import psycopg
+
+                name = os.environ['AUTHENTIK_POSTGRESQL__NAME']
+                with psycopg.connect(host=os.environ['AUTHENTIK_POSTGRESQL__HOST'],
+                                     user=os.environ['AUTHENTIK_POSTGRESQL__USER'],
+                                     password=os.environ['AUTHENTIK_POSTGRESQL__PASSWORD'], dbname='postgres',
+                                     autocommit=True) as conn:
+                    exists = conn.execute('SELECT 1 FROM pg_database WHERE datname = %s', (name,)).fetchone()
+                    if not exists:
+                        conn.execute(psycopg.sql.SQL('CREATE DATABASE {}').format(psycopg.sql.Identifier(name)))
+                PY
+                exec ak server
+        environment:
+            <<: *authentik_environment
+        volumes:
+            - authentik_data:/data:rw
+        networks:
+            - radix_network
+        ports:
+            - target: 9000
+              published: "${SCIM_PORT:-9000}"
+              host_ip: "127.0.0.1"
+              protocol: tcp
+    authentik-worker:
+        image: ghcr.io/goauthentik/server:2026.8
+        command: worker
+        restart: unless-stopped
+        shm_size: 512mb
+        # After the server, whose boot migrations run first; the worker applies the blueprints.
+        depends_on:
+            authentik:
+                condition: service_healthy
+        environment:
+            <<: *authentik_environment
+            # The blueprint pins the SCIM source's bearer token to this variable, which the application
+            # reads from `.env.local`.
+            SCIM_AUTHENTIK_TOKEN: "${SCIM_AUTHENTIK_TOKEN:-dev-scim-token}"
+            # The same pinning for the admin token the integration tests use.
+            SCIM_AUTHENTIK_ADMIN_TOKEN: "${SCIM_AUTHENTIK_ADMIN_TOKEN:-dev-scim-admin-token}"
+        volumes:
+            - authentik_data:/data:rw
+            - ./docker/authentik/blueprints/radix-source.yaml:/blueprints/radix-source.yaml:ro
+        networks:
+            - radix_network
 
 ###> symfony/mercure-bundle ###
 ###< symfony/mercure-bundle ###
@@ -333,3 +406,5 @@ volumes:
     mailman_static:
     mailman_web:
     postgres_data:
+    # Media and secret state of the development Authentik; its database lives on the shared PostgreSQL.
+    authentik_data:
