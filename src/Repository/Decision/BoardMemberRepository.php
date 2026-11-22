@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace App\Repository\Decision;
 
+use App\Entity\Decision\AssociationYear;
 use App\Entity\Decision\BoardMember;
+use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 use SortDirection;
+
+use function array_map;
+use function array_values;
 
 /**
  * @extends ServiceEntityRepository<BoardMember>
@@ -21,6 +27,70 @@ class BoardMemberRepository extends ServiceEntityRepository
             $registry,
             BoardMember::class,
         );
+    }
+
+    /**
+     * The members of the board whose term began in the given association year, as the SCIM board
+     * group for that year. A board starts with the association year (July 1st), so the term's year
+     * is the installation date's association year.
+     *
+     * @return list<int>
+     */
+    public function findMembersOfAssociationYear(int $firstYear): array
+    {
+        $year = AssociationYear::fromYear($firstYear);
+
+        $qb = $this->createQueryBuilder('bm')
+            ->select('IDENTITY(bm.member)')
+            ->distinct()
+            ->where('bm.installDate >= :start')
+            ->andWhere('bm.installDate < :end')
+            ->setParameter(
+                'start',
+                $year->getStartDate(),
+                Types::DATETIME_IMMUTABLE,
+            )
+            ->setParameter(
+                'end',
+                $year->getEndDate()->modify('+1 day'),
+                Types::DATETIME_IMMUTABLE,
+            );
+
+        return array_values(array_map(
+            static fn (array $row): int => (int) array_values($row)[0],
+            $qb->getQuery()->getScalarResult(),
+        ));
+    }
+
+    /**
+     * The members of the board in office on a date: installed and not discharged by it. This is
+     * what stack on July 1st as the new board is installed and the old one discharged.
+     *
+     * @return list<int>
+     */
+    public function findMembersByDate(DateTimeImmutable $date): array
+    {
+        $qb = $this->createQueryBuilder('bm')
+            ->select('IDENTITY(bm.member)')
+            ->distinct()
+            ->where('bm.installDate <= :date')
+            ->setParameter(
+                'date',
+                $date,
+                Types::DATETIME_IMMUTABLE,
+            );
+        $qb->andWhere($qb->expr()->orX(
+            $qb->expr()->isNull('bm.dischargeDate'),
+            $qb->expr()->gte(
+                'bm.dischargeDate',
+                ':date',
+            ),
+        ));
+
+        return array_values(array_map(
+            static fn (array $row): int => (int) array_values($row)[0],
+            $qb->getQuery()->getScalarResult(),
+        ));
     }
 
     /**

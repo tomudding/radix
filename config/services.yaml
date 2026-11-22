@@ -152,6 +152,7 @@ services:
             $supportedLocales: '%kernel.enabled_locales%' # array
             $enabledLocales: '%kernel.enabled_locales%' # array
             $mfaEnforcementEnabled: '%app.mfa.enforcement_enabled%' # bool
+            $scimEnabled: '%app.scim.enabled%' # bool
             $internalAffairsEmail: '%app.email.internal_affairs%' # string
             $tueRanges: '%app.education.tue_ranges%' # array
             $registerRanges: '%app.database.register_ranges%' # array

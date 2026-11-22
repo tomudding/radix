@@ -120,6 +120,7 @@ services:
                     cpus: "${IMAGE_WORKER_CPU_LIMIT:-0}"
                     memory: "${IMAGE_WORKER_MEMORY_LIMIT:-0}"
     scheduler-default: *worker_dev
+    scim-sync-worker: *worker_dev
     # One of each: a second consumer only makes the logs harder to follow. Production's counts are in compose.yaml.
     cron-worker:
         <<: *worker_dev

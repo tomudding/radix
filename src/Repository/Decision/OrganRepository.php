@@ -18,6 +18,7 @@ use SortDirection;
 
 use function array_map;
 use function mb_strtolower;
+use function preg_match;
 use function trim;
 
 /**
@@ -544,5 +545,58 @@ class OrganRepository extends ServiceEntityRepository
     public function findByFoundation(Foundation $foundation): ?Organ
     {
         return $this->findOneBy(['foundation' => $foundation]);
+    }
+
+    /**
+     * The body a foundation hash names. The hash is the projection foundation's own identity
+     * (`SubDecision\Foundation::getHash()`: `{meetingType}-{number}.{point}.{number}.{sequence}`),
+     * so it is stable across the nightly projection rebuild and survives a later body reusing the
+     * abbreviation. The foundation is a composite primary key, which DQL cannot compare as an
+     * association; the components are compared individually instead.
+     */
+    public function findByFoundationHash(string $hash): ?Organ
+    {
+        if (
+            1 !== preg_match(
+                '/^([A-Za-z]+)-(\d+)\.(\d+)\.(\d+)\.(\d+)$/',
+                $hash,
+                $matches,
+            )
+        ) {
+            return null;
+        }
+
+        return $this->createQueryBuilder('o')
+            ->join(
+                'o.foundation',
+                'f',
+            )
+            ->where('f.meeting_type = :meetingType')
+            ->andWhere('f.meeting_number = :meetingNumber')
+            ->andWhere('f.decision_point = :decisionPoint')
+            ->andWhere('f.decision_number = :decisionNumber')
+            ->andWhere('f.sequence = :sequence')
+            ->setParameter(
+                'meetingType',
+                $matches[1],
+            )
+            ->setParameter(
+                'meetingNumber',
+                (int) $matches[2],
+            )
+            ->setParameter(
+                'decisionPoint',
+                (int) $matches[3],
+            )
+            ->setParameter(
+                'decisionNumber',
+                (int) $matches[4],
+            )
+            ->setParameter(
+                'sequence',
+                (int) $matches[5],
+            )
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 }

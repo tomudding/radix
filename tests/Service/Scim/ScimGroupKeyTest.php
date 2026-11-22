@@ -4,40 +4,75 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Scim;
 
-use App\Entity\Database\Enums\OrganTypes;
 use App\Entity\Decision\AssociationYear;
 use App\Service\Scim\ScimGroupKey;
 use PHPUnit\Framework\TestCase;
 
 /**
  * The exact group names the consumers are provisioned with. These are the legacy names other
- * systems expect, so each one is pinned here: an active organ keeps its abbreviation, a board
- * year is counted from GEWIS's founding (1982-83 is 1), and the two computed groups have fixed
- * names.
+ * systems expect, so each one is pinned here: a body uses its abbreviation, an abrogated body
+ * the HIST_ marker and the abrogation year, and a board year is counted from GEWIS's founding
+ * (1982-83 is 1).
  */
 final class ScimGroupKeyTest extends TestCase
 {
-    public function testAnOrganKeepsItsAbbreviation(): void
+    public function testAnActiveBodyKeepsItsAbbreviation(): void
     {
-        $key = ScimGroupKey::organ(
-            OrganTypes::Committee,
+        $key = ScimGroupKey::activeBody(
             'SKB',
+            'ALV-5.2.3.1',
         );
 
         self::assertSame(
-            'ORGAN_SKB',
+            'BODY_SKB',
+            $key->displayName,
+        );
+        // The externalId is the foundation hash, which survives a later body reusing the letters.
+        self::assertSame(
+            'BODY:ALV-5.2.3.1',
+            $key->externalId,
+        );
+    }
+
+    public function testAnAbrogatedBodyAddsTheHistMarkerAndYear(): void
+    {
+        $key = ScimGroupKey::abrogatedBody(
+            'SKB',
+            'ALV-5.2.3.1',
+            1990,
+        );
+
+        self::assertSame(
+            'HIST_BODY_SKB (1990)',
             $key->displayName,
         );
         self::assertSame(
-            'organ:committee:SKB',
+            'BODY:ALV-5.2.3.1',
             $key->externalId,
+        );
+    }
+
+    public function testAnAbrogatedBodyKeepsItsFoundationExternalId(): void
+    {
+        // The same body's externalId does not change when it is abrogated: the source correlates
+        // on it, so a shifted group is the same group.
+        self::assertSame(
+            ScimGroupKey::activeBody(
+                'SKB',
+                'ALV-5.2.3.1',
+            )->externalId,
+            ScimGroupKey::abrogatedBody(
+                'SKB',
+                'ALV-5.2.3.1',
+                1990,
+            )->externalId,
         );
     }
 
     public function testTheBoardYearIsCountedFromTheFounding(): void
     {
         // The 2025-26 association year is the 44th since 1982-83.
-        $key = ScimGroupKey::year(AssociationYear::fromYear(2025));
+        $key = ScimGroupKey::boardYear(AssociationYear::fromYear(2025));
 
         self::assertSame(
             'BOARD_44',
@@ -51,7 +86,7 @@ final class ScimGroupKeyTest extends TestCase
 
     public function testTheFirstBoardYearIsOne(): void
     {
-        $key = ScimGroupKey::year(AssociationYear::fromYear(1982));
+        $key = ScimGroupKey::boardYear(AssociationYear::fromYear(1982));
 
         self::assertSame(
             'BOARD_1',

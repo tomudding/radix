@@ -21,6 +21,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use SortDirection;
 
 use function array_map;
+use function array_values;
 use function ctype_digit;
 use function strtolower;
 use function trim;
@@ -36,6 +37,40 @@ class MemberRepository extends ServiceEntityRepository
             $registry,
             Member::class,
         );
+    }
+
+    /**
+     * The lidnrs of the active members of one type. Active means the membership has not expired and
+     * the account is not deleted, so the SCIM type group holds exactly the members a type group
+     * should reach. `$type` null selects every active member regardless of type, and a type may be
+     * given as null to pair with a filter on formality.
+     *
+     * @return list<int>
+     */
+    public function findActiveLidnrsByType(?MembershipTypes $type): array
+    {
+        $qb = $this->createQueryBuilder('m')
+            ->select('m.lidnr')
+            ->where('m.deleted = false')
+            ->andWhere('m.expiration > :now')
+            ->setParameter(
+                'now',
+                new DateTimeImmutable(),
+                Types::DATETIME_IMMUTABLE,
+            );
+
+        if (null !== $type) {
+            $qb->andWhere('m.type = :type')
+                ->setParameter(
+                    'type',
+                    $type,
+                );
+        }
+
+        return array_values(array_map(
+            static fn (array $row): int => (int) $row['lidnr'],
+            $qb->getQuery()->getScalarResult(),
+        ));
     }
 
     /**

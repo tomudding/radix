@@ -306,6 +306,17 @@ services:
         # `--limit=64` rather than the 16 this started at: every restart reboots a kernel, which is noise next to one
         # encode but real overhead against a queue of hundreds of thousands. `--memory-limit` is the actual guard.
         command: [ "bin/console", "messenger:consume", "images", "-vv", "--time-limit=600", "--limit=64", "--memory-limit=512M" ]
+    # Pushes accounts and groups through SCIM; one replica limits a full-sync burst, and its own
+    # queue keeps a stuck source from delaying mail.
+    scim-sync-worker:
+        <<: *worker
+        environment:
+            <<: *app_environment
+            LOG_NAME: scim-sync-worker
+        deploy:
+            <<: *worker_deploy
+            replicas: ${SCIM_WORKER_REPLICAS:-1}
+        command: [ "bin/console", "messenger:consume", "scim", "-vv", "--time-limit=600", "--limit=32", "--memory-limit=256M" ]
     # Must stay at one replica: a schedule is generated rather than queued, and MainSchedule's lock lets only one
     # consumer advance it, so a second replica would do nothing. It only dispatches onto the queues below, so one
     # is also enough.

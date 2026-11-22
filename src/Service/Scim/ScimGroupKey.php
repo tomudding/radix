@@ -4,45 +4,62 @@ declare(strict_types=1);
 
 namespace App\Service\Scim;
 
-use App\Entity\Database\Enums\OrganTypes;
 use App\Entity\Decision\AssociationYear;
 
 use function sprintf;
+use function ucfirst;
 
 /**
- * The stable identity and the displayed name of a group on the SCIM source, derived from the
- * local facts rather than the projection's database id, which churns on every nightly rebuild.
+ * The stable identity and the displayed name of a group on the SCIM source.
  *
- * The names are fixed by the consumers the groups are provisioned for: an active organ is
- * `ORGAN_<abbr>`, a board year is `BOARD_<n>` with n counted from GEWIS's founding (1982-83 is
- * 1, so the 2025-26 board is 44), and the two computed groups are `BOARD_Current` — the board in
- * office right now — and `BOARD_Boards` — the current board plus the four before it.
- *
- * The externalId carries the same facts in a form made for correlation: a SCIM source correlates
- * groups on displayName and users on userName, and a stable externalId lets a later reconcile
- * tell which local object a remote one stands for without trusting either name.
+ * The externalId always names the body by its foundation hash — never by its abbreviation, which
+ * a later body can reuse after an abrogation — and does not change when the body is abrogated;
+ * only the displayName does, gaining the HIST_ marker and the year. The boards are counted from
+ * GEWIS's founding (1982-83 is 1, so the 2025-26 board is 44), plus the fixed BOARD_Current and
+ * BOARD_Boards. These names are fixed by the consumers, so each is pinned here.
  */
 final readonly class ScimGroupKey
 {
-    private const int FOUNDING_FIRST_YEAR = 1981;
+    public const int FOUNDING_FIRST_YEAR = 1981;
 
-    public function __construct(
+    private function __construct(
         public string $displayName,
         public string $externalId,
     ) {
     }
 
-    public static function organ(
-        OrganTypes $type,
+    /**
+     * An active body. The clean name belongs to the one body that bears the letters right now.
+     */
+    public static function activeBody(
         string $abbr,
+        string $foundationHash,
     ): self {
         return new self(
-            displayName: 'ORGAN_' . $abbr,
-            externalId: sprintf(
-                'organ:%s:%s',
-                $type->value,
+            displayName: 'BODY_' . $abbr,
+            externalId: 'BODY:' . $foundationHash,
+        );
+    }
+
+    /**
+     * An abrogated body. The HIST_ marker and the abrogation year keep it apart from the body that
+     * later took the same letters; the externalId stays the foundation hash, unchanged from when the
+     * body was active.
+     *
+     * @param int $abrogationYear the calendar year the abrogation took effect
+     */
+    public static function abrogatedBody(
+        string $abbr,
+        string $foundationHash,
+        int $abrogationYear,
+    ): self {
+        return new self(
+            displayName: sprintf(
+                'HIST_BODY_%s (%d)',
                 $abbr,
+                $abrogationYear,
             ),
+            externalId: 'BODY:' . $foundationHash,
         );
     }
 
@@ -50,7 +67,7 @@ final readonly class ScimGroupKey
      * The board group for one association year. The year is counted from GEWIS's founding, so
      * `BOARD_44` is the board of 2025-26.
      */
-    public static function year(AssociationYear $year): self
+    public static function boardYear(AssociationYear $year): self
     {
         $number = $year->getYear() - self::FOUNDING_FIRST_YEAR;
 
@@ -73,14 +90,55 @@ final readonly class ScimGroupKey
     }
 
     /**
-     * The group that holds the boards of the last few years, current included. Which years count
-     * and how their memberships overlap is the sync handler's decision; the name is fixed here.
+     * The group that holds the current board and the five before it — per the consumers, the
+     * "last five boards" drop is those six years together. The board that left on July 1st is
+     * therefore still present here the day after, while BOARD_Current has already moved on to the
+     * new one.
      */
     public static function recentBoards(): self
     {
         return new self(
             displayName: 'BOARD_Boards',
             externalId: 'board:recent',
+        );
+    }
+
+    /**
+     * The group for one membership type. Active members of that type only: a graduate is not a
+     * member within the meaning of the law, but the type is still tracked, so the class is named
+     * for the type.
+     */
+    public static function status(
+        string $type,
+    ): self {
+        return new self(
+            displayName: 'MEMBER_' . ucfirst($type),
+            externalId: 'MEMBER:' . $type,
+        );
+    }
+
+    /**
+     * The group of the formal members together — the ordinary, external and honorary members, the
+     * classes that may vote at a general meeting. Kept apart from the per-class groups above, and
+     * from GRADUATES: a graduate holds graduate status, not membership.
+     */
+    public static function formalMembers(): self
+    {
+        return new self(
+            displayName: 'MEMBERS',
+            externalId: 'STATUS:members',
+        );
+    }
+
+    /**
+     * The group of the members with graduate status. Called graduates rather than a MEMBER_ class
+     * because graduates are not members within the meaning of the law.
+     */
+    public static function graduates(): self
+    {
+        return new self(
+            displayName: 'GRADUATES',
+            externalId: 'STATUS:graduate',
         );
     }
 }

@@ -14,6 +14,7 @@ use App\Service\Decision\MeetingService;
 use App\Service\Decision\MemberService;
 use App\Service\Decision\MiscService;
 use App\Service\Decision\ProjectionState;
+use App\Service\Scim\ScimSyncDispatcher;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\PreRemoveEventArgs;
@@ -40,6 +41,7 @@ final class DatabaseDeletionListener
         private readonly MiscService $miscService,
         #[Autowire(service: 'doctrine.orm.application_entity_manager')]
         private readonly EntityManagerInterface $emWeb,
+        private readonly ScimSyncDispatcher $scimSync,
     ) {
     }
 
@@ -85,5 +87,12 @@ final class DatabaseDeletionListener
         }
 
         $this->emWeb->flush();
+
+        // After the removal is committed, so a message a worker consumes reads the member as gone.
+        if (!($entity instanceof Member)) {
+            return;
+        }
+
+        $this->scimSync->memberRemoved($entity->lidnr);
     }
 }

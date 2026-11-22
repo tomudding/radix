@@ -13,6 +13,9 @@ use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 use SortDirection;
 
+use function array_map;
+use function array_values;
+
 /**
  * @extends ServiceEntityRepository<OrganMember>
  */
@@ -122,6 +125,91 @@ class OrganMemberRepository extends ServiceEntityRepository
             $qb->getQuery(),
             false,
         );
+    }
+
+    /**
+     * The organs in which the member is currently installed.
+     *
+     * @return list<int>
+     */
+    public function findCurrentOrganIds(int $lidnr): array
+    {
+        $qb = $this->createQueryBuilder('om')
+            ->select('IDENTITY(om.organ)')
+            ->distinct()
+            ->andWhere('om.member = :member')
+            ->setParameter(
+                'member',
+                $lidnr,
+            );
+        $this->onlyCurrent($qb);
+
+        return array_values(array_map(
+            static fn (array $row): int => (int) array_values($row)[0],
+            $qb->getQuery()->getScalarResult(),
+        ));
+    }
+
+    /**
+     * The members currently installed in the organ.
+     *
+     * @return list<int>
+     */
+    public function findCurrentMemberLidnrs(int $organId): array
+    {
+        $qb = $this->createQueryBuilder('om')
+            ->select('IDENTITY(om.member)')
+            ->distinct()
+            ->andWhere('om.organ = :organ')
+            ->setParameter(
+                'organ',
+                $organId,
+            );
+        $this->onlyCurrent($qb);
+
+        return array_values(array_map(
+            static fn (array $row): int => (int) array_values($row)[0],
+            $qb->getQuery()->getScalarResult(),
+        ));
+    }
+
+    /**
+     * The members of the organ a date falls on: installed before it and not discharged by it. For
+     * an abrogated body this is the membership frozen at the abrogation date, which is what the
+     * SCIM group holds once the body is gone.
+     *
+     * @return list<int>
+     */
+    public function findMemberLidnrsByDate(
+        int $organId,
+        DateTimeImmutable $date,
+    ): array {
+        $qb = $this->createQueryBuilder('om')
+            ->select('IDENTITY(om.member)')
+            ->distinct()
+            ->andWhere('om.organ = :organ')
+            ->andWhere('om.installDate <= :date')
+            ->setParameter(
+                'organ',
+                $organId,
+            )
+            ->setParameter(
+                'date',
+                $date,
+                Types::DATETIME_IMMUTABLE,
+            );
+        $qb->andWhere($qb->expr()->orX(
+            $qb->expr()->isNull('om.dischargeDate'),
+            $qb->expr()->gte(
+                'om.dischargeDate',
+                ':date',
+            ),
+        ));
+
+        return array_values(array_map(
+            static fn (array $row): int => (int) array_values($row)[0],
+            $qb->getQuery()->getScalarResult(),
+        ));
     }
 
     private function onlyCurrent(QueryBuilder $qb): void
