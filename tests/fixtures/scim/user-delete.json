@@ -1,0 +1,18 @@
+{
+  "scenario": "user-delete",
+  "request": {
+    "method": "DELETE",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/Users/dae85780-363a-4e16-9cba-49ddc95621c0",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 204,
+    "headers": {},
+    "body": null
+  }
+}

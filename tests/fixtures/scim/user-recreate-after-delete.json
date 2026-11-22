@@ -1,0 +1,63 @@
+{
+  "scenario": "user-recreate-after-delete",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "POST",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/Users",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": {
+      "schemas": [
+        "urn:ietf:params:scim:schemas:core:2.0:User"
+      ],
+      "userName": "m90001",
+      "externalId": "90001",
+      "name": {
+        "formatted": "SCIM Probe Reborn"
+      },
+      "emails": [
+        {
+          "value": "m90001@example.org",
+          "type": "work",
+          "primary": true
+        }
+      ],
+      "active": true
+    }
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "content-type": "application/scim+json"
+    },
+    "body": {
+      "userName": "m90001",
+      "id": "2f7ada72-bf82-4aea-8d65-3435a3686b58",
+      "name": {
+        "formatted": "SCIM Probe Reborn"
+      },
+      "displayName": "SCIM Probe Reborn",
+      "active": true,
+      "emails": [
+        {
+          "value": "m90001@example.org",
+          "type": "work",
+          "primary": true
+        }
+      ],
+      "schemas": [
+        "urn:ietf:params:scim:schemas:core:2.0:User"
+      ],
+      "externalId": "90001",
+      "meta": {
+        "resourceType": "User",
+        "created": "2026-11-17T20:04:11.683156Z",
+        "lastModified": "2026-11-17T20:04:11.701333Z",
+        "location": "http://localhost:9000/source/scim/app-scim/v2/Users/2f7ada72-bf82-4aea-8d65-3435a3686b58"
+      }
+    }
+  }
+}

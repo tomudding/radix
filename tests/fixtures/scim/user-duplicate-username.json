@@ -1,0 +1,44 @@
+{
+  "scenario": "user-duplicate-username",
+  "request": {
+    "method": "POST",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/Users",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": {
+      "schemas": [
+        "urn:ietf:params:scim:schemas:core:2.0:User"
+      ],
+      "userName": "m90001",
+      "externalId": "90002",
+      "name": {
+        "formatted": "Duplicate Username"
+      },
+      "emails": [
+        {
+          "value": "dup@example.org",
+          "type": "work",
+          "primary": true
+        }
+      ],
+      "active": true
+    }
+  },
+  "response": {
+    "status": 409,
+    "headers": {
+      "content-type": "application/scim+json"
+    },
+    "body": {
+      "detail": "Group with ID exists already.",
+      "status": 409,
+      "schemas": [
+        "urn:ietf:params:scim:api:messages:2.0:Error"
+      ],
+      "scimType": "uniqueness"
+    }
+  }
+}

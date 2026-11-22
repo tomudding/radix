@@ -1,0 +1,66 @@
+{
+  "scenario": "user-create-unicode",
+  "request": {
+    "method": "POST",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/Users",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": {
+      "schemas": [
+        "urn:ietf:params:scim:schemas:core:2.0:User"
+      ],
+      "userName": "m90040",
+      "externalId": "90040",
+      "name": {
+        "formatted": "Zoë Müller-Schäfer 田中太郎",
+        "givenName": "Zoë",
+        "familyName": "Müller-Schäfer 田中太郎"
+      },
+      "emails": [
+        {
+          "value": "m90040@example.org",
+          "type": "work",
+          "primary": true
+        }
+      ],
+      "active": true
+    }
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "content-type": "application/scim+json"
+    },
+    "body": {
+      "userName": "m90040",
+      "id": "6d2e0de1-7e0d-47ff-a695-67e7a69565d0",
+      "name": {
+        "formatted": "Zoë Müller-Schäfer 田中太郎",
+        "familyName": "Müller-Schäfer 田中太郎",
+        "givenName": "Zoë"
+      },
+      "displayName": "Zoë Müller-Schäfer 田中太郎",
+      "active": true,
+      "emails": [
+        {
+          "value": "m90040@example.org",
+          "type": "work",
+          "primary": true
+        }
+      ],
+      "schemas": [
+        "urn:ietf:params:scim:schemas:core:2.0:User"
+      ],
+      "externalId": "90040",
+      "meta": {
+        "resourceType": "User",
+        "created": "2026-11-17T19:54:17.079180Z",
+        "lastModified": "2026-11-17T19:54:17.100408Z",
+        "location": "http://localhost:9000/source/scim/app-scim/v2/Users/6d2e0de1-7e0d-47ff-a695-67e7a69565d0"
+      }
+    }
+  }
+}

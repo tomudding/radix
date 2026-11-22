@@ -1,0 +1,23 @@
+{
+  "scenario": "auth-token-endpoint-404",
+  "authentik_version": "2026.8",
+  "note": "There is no username/password to token endpoint in 2026.8; the body is the admin UI's 404 page (excerpt).",
+  "request": {
+    "method": "POST",
+    "url": "http://localhost:9000/api/v3/auth/token/",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "username": "<dev-admin>",
+      "password": "<redacted>"
+    }
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "content-type": "text/html; charset=utf-8"
+    },
+    "body": "\n\n\n\n\n<!DOCTYPE html>\n<html\n    lang=\"en\"\n    \n    data-theme=\"light\"\n    data-theme-choice=\"auto\"\n>\n    <head>\n        <meta charset=\"UTF-8\">\n        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n        \n        <meta name=\"darkreader-lock\">\n        <title>\nauthentik\n</title> ... [404 page truncated]"
+  }
+}

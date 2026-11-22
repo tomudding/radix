@@ -1,0 +1,50 @@
+{
+  "scenario": "user-create-no-email",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "POST",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/Users",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": {
+      "schemas": [
+        "urn:ietf:params:scim:schemas:core:2.0:User"
+      ],
+      "userName": "m90020",
+      "externalId": "90020",
+      "name": {
+        "formatted": "No Email"
+      },
+      "active": true
+    }
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "content-type": "application/scim+json"
+    },
+    "body": {
+      "userName": "m90020",
+      "id": "c0593f40-f780-461d-adbe-d72206226a22",
+      "name": {
+        "formatted": "No Email"
+      },
+      "displayName": "No Email",
+      "active": true,
+      "emails": [],
+      "schemas": [
+        "urn:ietf:params:scim:schemas:core:2.0:User"
+      ],
+      "externalId": "90020",
+      "meta": {
+        "resourceType": "User",
+        "created": "2026-11-17T19:54:16.434171Z",
+        "lastModified": "2026-11-17T19:54:16.455961Z",
+        "location": "http://localhost:9000/source/scim/app-scim/v2/Users/c0593f40-f780-461d-adbe-d72206226a22"
+      }
+    }
+  }
+}

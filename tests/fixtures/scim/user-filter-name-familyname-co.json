@@ -1,0 +1,29 @@
+{
+  "scenario": "user-filter-name-familyname-co",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/Users?filter=name.familyName%20co%20%22robe%22",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/scim+json"
+    },
+    "body": {
+      "totalResults": 0,
+      "itemsPerPage": 20,
+      "startIndex": 0,
+      "schemas": [
+        "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+      ],
+      "Resources": []
+    }
+  }
+}

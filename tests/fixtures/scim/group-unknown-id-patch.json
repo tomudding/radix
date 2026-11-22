@@ -1,0 +1,39 @@
+{
+  "scenario": "group-unknown-id-patch",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "PATCH",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/Groups/00000000-0000-4000-8000-000000000000",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": {
+      "Operations": [
+        {
+          "op": "add",
+          "path": "members",
+          "value": [
+            {
+              "value": "dae85780-363a-4e16-9cba-49ddc95621c0"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "content-type": "application/scim+json"
+    },
+    "body": {
+      "detail": "Group not found.",
+      "status": 404,
+      "schemas": [
+        "urn:ietf:params:scim:api:messages:2.0:Error"
+      ]
+    }
+  }
+}

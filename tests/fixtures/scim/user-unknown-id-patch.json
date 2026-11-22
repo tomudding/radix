@@ -1,0 +1,27 @@
+{
+  "scenario": "user-unknown-id-patch",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "PATCH",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/Users/00000000-0000-4000-8000-000000000000",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "content-type": "application/scim+json"
+    },
+    "body": {
+      "detail": "User not found.",
+      "status": 404,
+      "schemas": [
+        "urn:ietf:params:scim:api:messages:2.0:Error"
+      ]
+    }
+  }
+}

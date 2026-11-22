@@ -26,6 +26,10 @@ parameters:
     # The transport a message lands on once every retry is spent. Named here rather than in `messenger.yaml` alone
     # because the administration's queue page reads the same transport back, and the two must not differ.
     app.messenger.failure_transport: 'failed'
+    # Pushes to the SCIM source. Off by default, so a deployment that has not pointed
+    # SCIM_AUTHENTIK_BASE_URL at a source never pushes; development turns it on in `.env.local`.
+    env(SCIM_ENABLED): 'false'
+    app.scim.enabled: '%env(bool:SCIM_ENABLED)%'
     # On the shared `data` volume, so the IP databases `app:user:update-ip-databases` fetches on a worker are the
     # ones the application reads; the entrypoint seeds them from the image until that command has run once.
     app.geoip.directory: '%kernel.project_dir%/data/geoip'
@@ -214,6 +218,10 @@ services:
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
+    # The SCIM client behind its interface: the handlers depend on the contract, and a different
+    # SCIM target is a container change rather than a code change.
+    App\Service\Scim\ScimClientInterface: '@App\Service\Scim\AuthentikScimClient'
+
     # The queue page reads the transports themselves. `messenger.receiver_locator` is not autowirable (it is a
     # generic service locator), and it is the only place that knows every configured transport by name.
     App\Service\Application\TransportStatusProvider:
@@ -272,6 +280,9 @@ when@test:
     parameters:
         app.mfa.enforcement_enabled: false
         app.user.compromised_password_check_enabled: false
+        # The SCIM transport is in-memory under test and nothing consumes it, so pushing to the
+        # source can be enabled; the wiring tests assert on the client, not on a live endpoint.
+        app.scim.enabled: true
 
     services:
         <<: *fixture_services

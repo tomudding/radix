@@ -1,0 +1,71 @@
+{
+  "scenario": "user-create-with-mapping3",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "POST",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/Users",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": {
+      "schemas": [
+        "urn:ietf:params:scim:schemas:core:2.0:User",
+        "urn:scim:schemas:extension:enterprise:2.0"
+      ],
+      "userName": "m90011",
+      "externalId": "90011",
+      "name": {
+        "formatted": "Mapping Probe"
+      },
+      "emails": [
+        {
+          "value": "m90011@example.org",
+          "type": "work",
+          "primary": true
+        }
+      ],
+      "active": true,
+      "urn:scim:schemas:extension:enterprise:2.0:User": {
+        "department": "m0-probe-dept"
+      }
+    }
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "content-type": "application/scim+json"
+    },
+    "body": {
+      "userName": "m90011",
+      "id": "5a67faa1-84a1-4754-b67f-bfa3701d89a6",
+      "name": {
+        "formatted": "Mapping Probe"
+      },
+      "displayName": "m0-probe-dept",
+      "active": true,
+      "emails": [
+        {
+          "value": "m90011@example.org",
+          "type": "work",
+          "primary": true
+        }
+      ],
+      "schemas": [
+        "urn:ietf:params:scim:schemas:core:2.0:User",
+        "urn:scim:schemas:extension:enterprise:2.0"
+      ],
+      "externalId": "90011",
+      "meta": {
+        "resourceType": "User",
+        "created": "2026-11-17T19:55:46.327799Z",
+        "lastModified": "2026-11-17T19:55:46.347512Z",
+        "location": "http://localhost:9000/source/scim/app-scim/v2/Users/5a67faa1-84a1-4754-b67f-bfa3701d89a6"
+      },
+      "urn:scim:schemas:extension:enterprise:2.0:User": {
+        "department": "m0-probe-dept"
+      }
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "scenario": "group-members-patch-add-unknown-uuid",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "PATCH",
+    "url": "http://localhost:9000/source/scim/app-scim/v2/Groups/24dc6324-5296-4bd1-8c47-0671978126d0",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/scim+json",
+      "Accept": "application/scim+json"
+    },
+    "body": {
+      "Operations": [
+        {
+          "op": "add",
+          "path": "members",
+          "value": [
+            {
+              "value": "00000000-0000-4000-8000-000000000000"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/scim+json"
+    },
+    "body": {
+      "id": "24dc6324-5296-4bd1-8c47-0671978126d0",
+      "displayName": "SCIM Probe Group",
+      "members": [
+        {
+          "value": "dae85780-363a-4e16-9cba-49ddc95621c0"
+        }
+      ],
+      "schemas": [
+        "urn:ietf:params:scim:schemas:core:2.0:Group"
+      ],
+      "externalId": "status-ordinary",
+      "meta": {
+        "resourceType": "Group",
+        "lastModified": "2026-11-17T19:51:55.038063Z",
+        "location": "http://localhost:9000/source/scim/app-scim/v2/Groups/24dc6324-5296-4bd1-8c47-0671978126d0"
+      }
+    }
+  }
+}

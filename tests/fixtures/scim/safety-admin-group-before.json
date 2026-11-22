@@ -1,0 +1,85 @@
+{
+  "scenario": "safety-admin-group-before",
+  "authentik_version": "2026.8",
+  "request": {
+    "method": "GET",
+    "url": "http://localhost:9000/api/v3/core/groups/?search=Admin&pagination=false",
+    "headers": {
+      "Authorization": "Bearer <redacted-token>",
+      "Content-Type": "application/json"
+    },
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8"
+    },
+    "body": {
+      "pagination": {
+        "next": 0,
+        "previous": 0,
+        "count": 1,
+        "current": 1,
+        "total_pages": 1,
+        "start_index": 1,
+        "end_index": 1
+      },
+      "results": [
+        {
+          "pk": "99cf2102-ef1a-4d46-a3d3-31286f295165",
+          "num_pk": 20444,
+          "name": "authentik Admins",
+          "is_superuser": true,
+          "parents": [],
+          "parents_obj": null,
+          "users": [
+            4
+          ],
+          "users_obj": [
+            {
+              "pk": 4,
+              "username": "akadmin",
+              "name": "authentik Default Admin",
+              "is_active": true,
+              "last_login": null,
+              "email": "root@example.com",
+              "attributes": {},
+              "uid": "6bb3593958219bb7903004481299b69b6bdbd21da392839f2b8eb7608fe4a575"
+            }
+          ],
+          "attributes": {},
+          "roles": [],
+          "roles_obj": [],
+          "inherited_roles_obj": null,
+          "children": [],
+          "children_obj": null
+        }
+      ],
+      "autocomplete": {
+        "current_model": "authentik_core.group",
+        "models": {
+          "authentik_core.group": {
+            "name": {
+              "type": "str",
+              "nullable": false,
+              "options": null
+            },
+            "is_superuser": {
+              "type": "bool",
+              "nullable": true,
+              "options": null
+            },
+            "attributes": {
+              "type": "relation",
+              "nullable": false,
+              "options": null,
+              "relation": "authentik_core.group_attributes"
+            }
+          },
+          "authentik_core.group_attributes": {}
+        }
+      }
+    }
+  }
+}

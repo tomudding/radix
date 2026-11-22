@@ -81,6 +81,11 @@ x-app-environment: &app_environment
     LISTMONK_API_USERNAME: "${LISTMONK_API_USERNAME:?LISTMONK_API_USERNAME must be set}"
     LISTMONK_API_PASSWORD: "${LISTMONK_API_PASSWORD:?LISTMONK_API_PASSWORD must be set}"
 
+    # The SCIM source radix pushes to; unset values push nothing (SCIM_ENABLED defaults to false).
+    SCIM_AUTHENTIK_BASE_URL: "${SCIM_AUTHENTIK_BASE_URL:-}"
+    SCIM_AUTHENTIK_TOKEN: "${SCIM_AUTHENTIK_TOKEN:-}"
+    SCIM_ENABLED: "${SCIM_ENABLED:-false}"
+
     # Stripe, which settles the membership fee during sign-up. The secret key must be a restricted key; see
     # .env.local.dist for the permissions it needs. Development ships placeholders rather than leaving these empty, so
     # that a checkout without a Stripe account still satisfies the guards.
