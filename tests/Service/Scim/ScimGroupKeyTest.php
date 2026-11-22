@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Scim;
 
+use App\Entity\Database\Enums\BoardFunctions;
 use App\Entity\Decision\AssociationYear;
 use App\Service\Scim\ScimGroupKey;
 use PHPUnit\Framework\TestCase;
@@ -118,6 +119,51 @@ final class ScimGroupKeyTest extends TestCase
         );
         self::assertSame(
             'board:recent',
+            $key->externalId,
+        );
+    }
+
+    public function testKeyholdersHasAFixedName(): void
+    {
+        $key = ScimGroupKey::keyholders();
+
+        self::assertSame(
+            'KEYHOLDERS',
+            $key->displayName,
+        );
+        self::assertSame(
+            'STATUS:keyholders',
+            $key->externalId,
+        );
+    }
+
+    public function testABoardFunctionKeepsItsEnglishName(): void
+    {
+        $key = ScimGroupKey::boardFunction(BoardFunctions::Secretary);
+
+        self::assertSame(
+            'BOARD_Secretary',
+            $key->displayName,
+        );
+        self::assertSame(
+            'board:secretary',
+            $key->externalId,
+        );
+    }
+
+    public function testABoardFunctionPlusMarksTheReleasedTransition(): void
+    {
+        $key = ScimGroupKey::boardFunction(
+            BoardFunctions::Treasurer,
+            plus: true,
+        );
+
+        self::assertSame(
+            'BOARD_TreasurerPlus',
+            $key->displayName,
+        );
+        self::assertSame(
+            'board:treasurer:plus',
             $key->externalId,
         );
     }

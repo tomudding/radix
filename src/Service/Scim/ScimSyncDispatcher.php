@@ -13,6 +13,8 @@ use App\Entity\Database\SubDecision\Board\Release as BoardRelease;
 use App\Entity\Database\SubDecision\Discharge;
 use App\Entity\Database\SubDecision\Foundation;
 use App\Entity\Database\SubDecision\FoundationReference;
+use App\Entity\Database\SubDecision\Key\Granting as KeyGranting;
+use App\Entity\Database\SubDecision\Key\Withdrawal as KeyWithdrawal;
 use App\Entity\User\Enums\ScimLocalTypes;
 use App\Message\Scim\SyncGroupMembershipMessage;
 use App\Message\Scim\SyncGroupMessage;
@@ -26,9 +28,10 @@ use function sprintf;
  * has been committed. Every handler re-reads the state itself, so only identifiers travel.
  *
  * A body write dispatches the body group by its foundation hash; a board write dispatches the
- * board drops the change lands in. Individual per-year board groups are left to the
- * reconciliation, which enumerates every year; a dispatch only needs the current and recent
- * drops to stay current.
+ * board drops the change lands in, including the function drop of the member it names; a key
+ * grant or withdrawal dispatches the fixed keyholders group. Individual per-year board groups
+ * are left to the reconciliation, which enumerates every year; a dispatch only needs the
+ * current and recent drops to stay current.
  */
 final readonly class ScimSyncDispatcher
 {
@@ -84,6 +87,21 @@ final readonly class ScimSyncDispatcher
             ));
         }
 
+        // A key grant changes who holds a key, so the fixed keyholders group is dispatched too.
+        if (
+            $subDecision instanceof KeyGranting
+            || $subDecision instanceof KeyWithdrawal
+        ) {
+            $this->messageBus->dispatch(new SyncGroupMessage(
+                ScimLocalTypes::Status,
+                ScimGroupResolver::STATUS_KEYHOLDERS,
+            ));
+            $this->messageBus->dispatch(new SyncGroupMembershipMessage(
+                ScimLocalTypes::Status,
+                ScimGroupResolver::STATUS_KEYHOLDERS,
+            ));
+        }
+
         if (!$this->touchesBoard($subDecision)) {
             return;
         }
@@ -103,6 +121,52 @@ final readonly class ScimSyncDispatcher
                 $boardKey,
             ));
         }
+
+        foreach ($this->boardFunctionKeys($subDecision) as $functionKey) {
+            $this->messageBus->dispatch(new SyncGroupMessage(
+                ScimLocalTypes::Board,
+                $functionKey,
+            ));
+            $this->messageBus->dispatch(new SyncGroupMembershipMessage(
+                ScimLocalTypes::Board,
+                $functionKey,
+            ));
+        }
+    }
+
+    /**
+     * The board function drops a subdecision's projection changes. An installation puts its
+     * member into the function's current group; a release moves them into the released-but-
+     * undischarged group; a discharge empties both. An annulment names no installation, so its
+     * function drops are left to the reconciliation.
+     *
+     * @return list<string>
+     */
+    private function boardFunctionKeys(SubDecision $subDecision): array
+    {
+        if ($subDecision instanceof BoardInstallation) {
+            return [
+                ScimGroupResolver::boardFunctionKey($subDecision->function),
+            ];
+        }
+
+        if ($subDecision instanceof BoardRelease) {
+            return [
+                ScimGroupResolver::boardFunctionKey($subDecision->installation->function)
+                . ScimGroupResolver::BOARD_FUNCTION_PLUS_SUFFIX,
+            ];
+        }
+
+        if ($subDecision instanceof BoardDischarge) {
+            $functionKey = ScimGroupResolver::boardFunctionKey($subDecision->installation->function);
+
+            return [
+                $functionKey,
+                $functionKey . ScimGroupResolver::BOARD_FUNCTION_PLUS_SUFFIX,
+            ];
+        }
+
+        return [];
     }
 
     private function touchesBoard(SubDecision $subDecision): bool

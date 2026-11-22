@@ -10,6 +10,9 @@ use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
 use SortDirection;
 
+use function array_map;
+use function array_values;
+
 /**
  * @extends ServiceEntityRepository<Keyholder>
  */
@@ -21,6 +24,37 @@ class KeyholderRepository extends ServiceEntityRepository
             $registry,
             Keyholder::class,
         );
+    }
+
+    /**
+     * The lidnrs of the members whose key grant is currently valid — the same rule
+     * {@see Keyholder::isCurrent()} applies, and a deleted member's account is not pushed, like
+     * the other status groups.
+     *
+     * @return list<int>
+     */
+    public function findCurrentLidnrs(): array
+    {
+        $qb = $this->createQueryBuilder('k');
+        $qb->select('IDENTITY(k.member) AS lidnr')
+            ->innerJoin(
+                'k.member',
+                'm',
+            )
+            ->where('k.expirationDate >= CURRENT_DATE()')
+            ->andWhere($qb->expr()->orX(
+                $qb->expr()->isNull('k.withdrawnDate'),
+                $qb->expr()->gte(
+                    'k.withdrawnDate',
+                    'CURRENT_DATE()',
+                ),
+            ))
+            ->andWhere('m.deleted = false');
+
+        return array_values(array_map(
+            static fn (array $row): int => (int) $row['lidnr'],
+            $qb->getQuery()->getScalarResult(),
+        ));
     }
 
     /**

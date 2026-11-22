@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\Scim;
 
+use App\Entity\Database\Enums\BoardFunctions;
 use App\Entity\Decision\AssociationYear;
 
 use function sprintf;
+use function strtolower;
 use function ucfirst;
 
 /**
@@ -104,6 +106,28 @@ final readonly class ScimGroupKey
     }
 
     /**
+     * The group for one board function: the members installed in it and not yet discharged. The
+     * Plus drop holds those released from the function but not yet discharged — the transition
+     * in which a secretary or treasurer keeps their register rights. The function is named by its
+     * English case name, so the drops read BOARD_Secretary and BOARD_SecretaryPlus.
+     */
+    public static function boardFunction(
+        BoardFunctions $function,
+        bool $plus = false,
+    ): self {
+        $name = $function->name;
+
+        return new self(
+            displayName: $plus
+                ? 'BOARD_' . $name . 'Plus'
+                : 'BOARD_' . $name,
+            externalId: $plus
+                ? 'board:' . strtolower($name) . ':plus'
+                : 'board:' . strtolower($name),
+        );
+    }
+
+    /**
      * The group for one membership type. Active members of that type only: a graduate is not a
      * member within the meaning of the law, but the type is still tracked, so the class is named
      * for the type.
@@ -139,6 +163,18 @@ final readonly class ScimGroupKey
         return new self(
             displayName: 'GRADUATES',
             externalId: 'STATUS:graduate',
+        );
+    }
+
+    /**
+     * The group of the members whose key grant is currently valid. Keyholdership is a grant with
+     * an expiration, not a membership state, so it is its own drop rather than a MEMBER_ class.
+     */
+    public static function keyholders(): self
+    {
+        return new self(
+            displayName: 'KEYHOLDERS',
+            externalId: 'STATUS:keyholders',
         );
     }
 }

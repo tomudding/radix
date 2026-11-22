@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository\Decision;
 
+use App\Entity\Database\Enums\BoardFunctions;
 use App\Entity\Decision\AssociationYear;
 use App\Entity\Decision\BoardMember;
 use DateTimeImmutable;
@@ -65,8 +66,11 @@ class BoardMemberRepository extends ServiceEntityRepository
     }
 
     /**
-     * The members of the board in office on a date: installed and not discharged by it. This is
-     * what stack on July 1st as the new board is installed and the old one discharged.
+     * The members of the board in office on a date: installed, not released and not discharged by
+     * it — the same rule {@see \App\Entity\Decision\Member::isCurrentBoard()} applies. A board
+     * released at the association-year boundary therefore leaves the current board drop on the
+     * boundary itself, while the Plus drops keep the released-but-undischarged members until the
+     * discharge.
      *
      * @return list<int>
      */
@@ -81,9 +85,107 @@ class BoardMemberRepository extends ServiceEntityRepository
                 $date,
                 Types::DATETIME_IMMUTABLE,
             );
+        $qb->andWhere($qb->expr()->andX(
+            $qb->expr()->orX(
+                $qb->expr()->isNull('bm.releaseDate'),
+                $qb->expr()->gt(
+                    'bm.releaseDate',
+                    ':date',
+                ),
+            ),
+            $qb->expr()->orX(
+                $qb->expr()->isNull('bm.dischargeDate'),
+                $qb->expr()->gt(
+                    'bm.dischargeDate',
+                    ':date',
+                ),
+            ),
+        ));
+
+        return array_values(array_map(
+            static fn (array $row): int => (int) array_values($row)[0],
+            $qb->getQuery()->getScalarResult(),
+        ));
+    }
+
+    /**
+     * The members currently serving in one board function: installed in it, not released and not
+     * discharged — the same rule {@see \App\Entity\Decision\Member::isCurrentBoard()} applies,
+     * narrowed to the function. A released member sits in the Plus drop of the function instead,
+     * so the two sets are disjoint.
+     *
+     * @return list<int>
+     */
+    public function findCurrentLidnrsByFunction(
+        BoardFunctions $function,
+        DateTimeImmutable $date,
+    ): array {
+        $qb = $this->createQueryBuilder('bm')
+            ->select('IDENTITY(bm.member)')
+            ->distinct()
+            ->where('bm.function = :function')
+            ->andWhere('bm.installDate <= :date')
+            ->setParameter(
+                'function',
+                $function,
+            )
+            ->setParameter(
+                'date',
+                $date,
+                Types::DATETIME_IMMUTABLE,
+            );
+        $qb->andWhere($qb->expr()->andX(
+            $qb->expr()->orX(
+                $qb->expr()->isNull('bm.releaseDate'),
+                $qb->expr()->gt(
+                    'bm.releaseDate',
+                    ':date',
+                ),
+            ),
+            $qb->expr()->orX(
+                $qb->expr()->isNull('bm.dischargeDate'),
+                $qb->expr()->gt(
+                    'bm.dischargeDate',
+                    ':date',
+                ),
+            ),
+        ));
+
+        return array_values(array_map(
+            static fn (array $row): int => (int) array_values($row)[0],
+            $qb->getQuery()->getScalarResult(),
+        ));
+    }
+
+    /**
+     * The members released from one board function but not yet discharged — the transition in
+     * which a secretary or treasurer keeps their register rights. The same rule
+     * {@see \App\Entity\Decision\Member::isReleasedButUndischargedSecretary()} applies,
+     * generalized to any function.
+     *
+     * @return list<int>
+     */
+    public function findReleasedButUndischargedLidnrsByFunction(
+        BoardFunctions $function,
+        DateTimeImmutable $date,
+    ): array {
+        $qb = $this->createQueryBuilder('bm')
+            ->select('IDENTITY(bm.member)')
+            ->distinct()
+            ->where('bm.function = :function')
+            ->andWhere('bm.releaseDate <= :date')
+            ->setParameter(
+                'function',
+                $function,
+            )
+            ->setParameter(
+                'date',
+                $date,
+                Types::DATETIME_IMMUTABLE,
+            );
         $qb->andWhere($qb->expr()->orX(
             $qb->expr()->isNull('bm.dischargeDate'),
-            $qb->expr()->gte(
+            $qb->expr()->gt(
                 'bm.dischargeDate',
                 ':date',
             ),

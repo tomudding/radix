@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Service\Scim;
 
+use App\Entity\Database\Enums\BoardFunctions;
 use App\Entity\Database\Enums\MembershipTypes;
 use App\Entity\Decision\AssociationYear;
+use App\Entity\Decision\BoardMember;
 use App\Entity\Decision\Organ;
 use App\Entity\User\Enums\ScimLocalTypes;
 use App\Repository\Decision\BoardMemberRepository;
+use App\Repository\Decision\KeyholderRepository;
 use App\Repository\Decision\MemberRepository;
 use App\Repository\Decision\OrganMemberRepository;
 use App\Repository\Decision\OrganRepository;
@@ -20,6 +23,10 @@ use function array_values;
 use function is_numeric;
 use function range;
 use function sprintf;
+use function str_ends_with;
+use function str_starts_with;
+use function strlen;
+use function substr;
 
 /**
  * Turns a local group reference — a body's foundation hash, a board drop's key or a membership
@@ -36,14 +43,24 @@ final class ScimGroupResolver
 {
     public const string BOARD_CURRENT = 'current';
     public const string BOARD_RECENT = 'recent';
+
+    /**
+     * The local id prefix of a board function drop; the Plus suffix names the released-but-
+     * undischarged drop of the same function.
+     */
+    public const string BOARD_FUNCTION_PREFIX = 'function:';
+    public const string BOARD_FUNCTION_PLUS_SUFFIX = ':plus';
+
     public const string STATUS_MEMBERS = 'members';
     public const string STATUS_GRADUATES = 'graduates';
+    public const string STATUS_KEYHOLDERS = 'keyholders';
 
     public function __construct(
         private readonly OrganRepository $organRepository,
         private readonly OrganMemberRepository $organMemberRepository,
         private readonly BoardMemberRepository $boardMemberRepository,
         private readonly MemberRepository $memberRepository,
+        private readonly KeyholderRepository $keyholderRepository,
     ) {
     }
 
@@ -93,6 +110,13 @@ final class ScimGroupResolver
             $boardKeys[] = (string) ($firstYear - ScimGroupKey::FOUNDING_FIRST_YEAR);
         }
 
+        // Every board function, current and Plus: a function the board never used still gets both
+        // drops, so a first installation does not wait for the next full sweep.
+        foreach (BoardFunctions::cases() as $function) {
+            $boardKeys[] = self::boardFunctionKey($function);
+            $boardKeys[] = self::boardFunctionKey($function) . self::BOARD_FUNCTION_PLUS_SUFFIX;
+        }
+
         foreach ($boardKeys as $boardKey) {
             $refs[] = new ResolvedScimGroupRef(
                 ScimLocalTypes::Board,
@@ -103,6 +127,7 @@ final class ScimGroupResolver
         $statusIds = [
             self::STATUS_MEMBERS,
             self::STATUS_GRADUATES,
+            self::STATUS_KEYHOLDERS,
         ];
         foreach (MembershipTypes::cases() as $type) {
             $statusIds[] = $type->value;
@@ -157,12 +182,60 @@ final class ScimGroupResolver
             );
         }
 
+        $member = $this->memberRepository->find($lidnr);
+        if (null !== $member) {
+            $now = new DateTimeImmutable();
+            foreach ($member->getBoardInstallations() as $installation) {
+                $functionKey = self::boardFunctionKey($installation->function);
+                if ($member->isCurrentBoard($installation)) {
+                    $refs[] = new ResolvedScimGroupRef(
+                        ScimLocalTypes::Board,
+                        $functionKey,
+                    );
+                }
+
+                if (
+                    !$this->isReleasedButUndischarged(
+                        $installation,
+                        $now,
+                    )
+                ) {
+                    continue;
+                }
+
+                $refs[] = new ResolvedScimGroupRef(
+                    ScimLocalTypes::Board,
+                    $functionKey . self::BOARD_FUNCTION_PLUS_SUFFIX,
+                );
+            }
+        }
+
         $statusRefs = $this->statusRefsForMember($lidnr);
         foreach ($statusRefs as $statusRef) {
             $refs[] = $statusRef;
         }
 
         return $refs;
+    }
+
+    /**
+     * Whether a board installation is in the released-but-not-yet-discharged transition — the
+     * same rule {@see \App\Entity\Decision\Member::isReleasedButUndischargedSecretary()} applies,
+     * generalized to any function.
+     */
+    private function isReleasedButUndischarged(
+        BoardMember $installation,
+        DateTimeImmutable $now,
+    ): bool {
+        $released = $installation->releaseDate;
+        $discharged = $installation->dischargeDate;
+
+        return null !== $released
+            && $released <= $now
+            && (
+                null === $discharged
+                || $discharged > $now
+            );
     }
 
     private function bodyGroup(string $foundationHash): ?ResolvedScimGroup
@@ -227,6 +300,18 @@ final class ScimGroupResolver
         }
 
         if (
+            str_starts_with(
+                $boardKey,
+                self::BOARD_FUNCTION_PREFIX,
+            )
+        ) {
+            return $this->boardFunctionGroup(
+                $boardKey,
+                $on,
+            );
+        }
+
+        if (
             !is_numeric($boardKey)
             || (int) $boardKey < 1
         ) {
@@ -241,6 +326,61 @@ final class ScimGroupResolver
             externalId: $key->externalId,
             memberLidnrs: $this->boardMemberRepository->findMembersOfAssociationYear($firstYear),
         );
+    }
+
+    private function boardFunctionGroup(
+        string $boardKey,
+        DateTimeImmutable $on,
+    ): ?ResolvedScimGroup {
+        $name = substr(
+            $boardKey,
+            strlen(self::BOARD_FUNCTION_PREFIX),
+        );
+        $plus = str_ends_with(
+            $name,
+            self::BOARD_FUNCTION_PLUS_SUFFIX,
+        );
+        if ($plus) {
+            $name = substr(
+                $name,
+                0,
+                -strlen(self::BOARD_FUNCTION_PLUS_SUFFIX),
+            );
+        }
+
+        // The local id carries the function's Dutch value, which is what the decisions write.
+        $function = BoardFunctions::tryFrom($name);
+        if (null === $function) {
+            return null;
+        }
+
+        $key = ScimGroupKey::boardFunction(
+            $function,
+            $plus,
+        );
+
+        return new ResolvedScimGroup(
+            displayName: $key->displayName,
+            externalId: $key->externalId,
+            memberLidnrs: $plus
+                ? $this->boardMemberRepository->findReleasedButUndischargedLidnrsByFunction(
+                    $function,
+                    $on,
+                )
+                : $this->boardMemberRepository->findCurrentLidnrsByFunction(
+                    $function,
+                    $on,
+                ),
+        );
+    }
+
+    /**
+     * The local id of a board function drop. The function's Dutch value is the stable identity
+     * the decisions carry; the display name and external id render the English case name.
+     */
+    public static function boardFunctionKey(BoardFunctions $function): string
+    {
+        return self::BOARD_FUNCTION_PREFIX . $function->value;
     }
 
     private function statusGroup(string $statusId): ?ResolvedScimGroup
@@ -266,6 +406,16 @@ final class ScimGroupResolver
             );
         }
 
+        if (self::STATUS_KEYHOLDERS === $statusId) {
+            $key = ScimGroupKey::keyholders();
+
+            return new ResolvedScimGroup(
+                displayName: $key->displayName,
+                externalId: $key->externalId,
+                memberLidnrs: $this->keyholderRepository->findCurrentLidnrs(),
+            );
+        }
+
         $type = MembershipTypes::tryFrom($statusId);
         if (null === $type) {
             return null;
@@ -282,7 +432,8 @@ final class ScimGroupResolver
 
     /**
      * The status groups a member belongs to: their own type's group plus, when the type is a
-     * formal membership, the MEMBERS group; when it is a graduate, the GRADUATES group.
+     * formal membership, the MEMBERS group; when it is a graduate, the GRADUATES group; and the
+     * KEYHOLDERS group while their key grant is current.
      *
      * @return list<ResolvedScimGroupRef>
      */
@@ -305,6 +456,12 @@ final class ScimGroupResolver
                 ? self::STATUS_MEMBERS
                 : self::STATUS_GRADUATES,
         );
+        if ($member->isKeyholder()) {
+            $refs[] = new ResolvedScimGroupRef(
+                ScimLocalTypes::Status,
+                self::STATUS_KEYHOLDERS,
+            );
+        }
 
         return $refs;
     }
