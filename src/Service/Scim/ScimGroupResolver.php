@@ -14,10 +14,12 @@ use App\Repository\Decision\OrganMemberRepository;
 use App\Repository\Decision\OrganRepository;
 use DateTimeImmutable;
 
+use function array_map;
 use function array_unique;
 use function array_values;
 use function is_numeric;
 use function range;
+use function sprintf;
 
 /**
  * Turns a local group reference — a body's foundation hash, a board drop's key or a membership
@@ -63,6 +65,57 @@ final class ScimGroupResolver
             ScimLocalTypes::Status => $this->statusGroup($localId),
             ScimLocalTypes::User => null,
         };
+    }
+
+    /**
+     * Every group reference the projection has, for a full sync or a reconciliation: the bodies
+     * (active and abrogated, by foundation hash), the board years that ever had a term plus the
+     * two fixed drops, and the statuses. The reconciliation walks this so a group that a write
+     * never touched is still brought in line.
+     *
+     * @return list<ResolvedScimGroupRef>
+     */
+    public function allGroupRefs(): array
+    {
+        $refs = [];
+        foreach ($this->organIds() as $foundationHash) {
+            $refs[] = new ResolvedScimGroupRef(
+                ScimLocalTypes::Body,
+                $foundationHash,
+            );
+        }
+
+        $boardKeys = [
+            self::BOARD_CURRENT,
+            self::BOARD_RECENT,
+        ];
+        foreach ($this->boardMemberRepository->findInstallationYears() as $firstYear) {
+            $boardKeys[] = (string) ($firstYear - ScimGroupKey::FOUNDING_FIRST_YEAR);
+        }
+
+        foreach ($boardKeys as $boardKey) {
+            $refs[] = new ResolvedScimGroupRef(
+                ScimLocalTypes::Board,
+                $boardKey,
+            );
+        }
+
+        $statusIds = [
+            self::STATUS_MEMBERS,
+            self::STATUS_GRADUATES,
+        ];
+        foreach (MembershipTypes::cases() as $type) {
+            $statusIds[] = $type->value;
+        }
+
+        foreach ($statusIds as $statusId) {
+            $refs[] = new ResolvedScimGroupRef(
+                ScimLocalTypes::Status,
+                $statusId,
+            );
+        }
+
+        return $refs;
     }
 
     /**
@@ -254,6 +307,43 @@ final class ScimGroupResolver
         );
 
         return $refs;
+    }
+
+    /**
+     * The foundation hash of every body the projection holds, active and abrogated. This is the
+     * complete set a reconciliation reconciles, because a body that was never written to after a
+     * dispatch still has a group on the source.
+     *
+     * @return list<string>
+     */
+    private function organIds(): array
+    {
+        $rows = $this->organRepository->createQueryBuilder('o')
+            ->select(
+                'f.meeting_type AS meetingType',
+                'f.meeting_number AS meetingNumber',
+                'f.decision_point AS decisionPoint',
+                'f.decision_number AS decisionNumber',
+                'f.sequence AS sequence',
+            )
+            ->join(
+                'o.foundation',
+                'f',
+            )
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_values(array_map(
+            static fn (array $row): string => sprintf(
+                '%s-%d.%d.%d.%d',
+                (string) $row['meetingType'],
+                (int) $row['meetingNumber'],
+                (int) $row['decisionPoint'],
+                (int) $row['decisionNumber'],
+                (int) $row['sequence'],
+            ),
+            $rows,
+        ));
     }
 
     /**

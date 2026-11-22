@@ -14,7 +14,9 @@ use Doctrine\Persistence\ManagerRegistry;
 use SortDirection;
 
 use function array_map;
+use function array_unique;
 use function array_values;
+use function sort;
 
 /**
  * @extends ServiceEntityRepository<BoardMember>
@@ -91,6 +93,35 @@ class BoardMemberRepository extends ServiceEntityRepository
             static fn (array $row): int => (int) array_values($row)[0],
             $qb->getQuery()->getScalarResult(),
         ));
+    }
+
+    /**
+     * The first years of every association year a board term began in, oldest first. This is what
+     * the reconciliation enumerates the per-year BOARD_<n> groups from, so each board that ever
+     * existed gets a group even when the current drop has already moved on.
+     *
+     * @return list<int>
+     */
+    public function findInstallationYears(): array
+    {
+        $dates = $this->createQueryBuilder('bm')
+            ->select('bm.installDate')
+            ->distinct()
+            ->getQuery()
+            ->getScalarResult();
+
+        $years = array_map(
+            static fn (array $row): int => AssociationYear::fromDate(
+                $row['installDate'] instanceof DateTimeImmutable
+                    ? $row['installDate']
+                    : new DateTimeImmutable((string) $row['installDate']),
+            )->getYear(),
+            $dates,
+        );
+
+        sort($years);
+
+        return array_values(array_unique($years));
     }
 
     /**
