@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Command\Scim;
 
 use App\Command\HoldsRunLockTrait;
+use App\Entity\Decision\Member;
 use App\Entity\User\Enums\ScimLocalTypes;
 use App\Entity\User\ScimRemoteLink;
-use App\Entity\User\User;
 use App\Message\Scim\SyncGroupMembershipMessage;
 use App\Message\Scim\SyncGroupMessage;
 use App\Message\Scim\SyncUserMessage;
+use App\Repository\Decision\MemberRepository;
 use App\Repository\User\ScimRemoteLinkRepository;
-use App\Repository\User\UserRepository;
 use App\Service\Scim\GroupScimMapper;
 use App\Service\Scim\GroupScimSource;
 use App\Service\Scim\ResolvedScimGroupRef;
@@ -74,7 +74,7 @@ final class ReconcileCommand extends Command
         private readonly ScimClientInterface $client,
         private readonly UserScimMapper $userMapper,
         private readonly GroupScimMapper $groupMapper,
-        private readonly UserRepository $userRepository,
+        private readonly MemberRepository $memberRepository,
         private readonly ScimRemoteLinkRepository $linkRepository,
         private readonly ScimGroupResolver $groupResolver,
         private readonly MessageBusInterface $messageBus,
@@ -204,8 +204,8 @@ final class ReconcileCommand extends Command
                 true,
             )
         ) {
-            foreach ($this->userRepository->findAll() as $user) {
-                $dispatch(new SyncUserMessage($user->lidnr), 'user');
+            foreach ($this->memberRepository->findAll() as $member) {
+                $dispatch(new SyncUserMessage($member->lidnr), 'user');
             }
         } else {
             $orphans = $this->reconcileUsers(
@@ -311,25 +311,15 @@ final class ReconcileCommand extends Command
         }
 
         $userLinks = $this->linksOf(ScimLocalTypes::User);
-        $localUsers = $this->userRepository->findAll();
+        $localMembers = $this->memberRepository->findAll();
         $localLidnrs = array_map(
-            static fn (User $user): int => $user->lidnr,
-            $localUsers,
+            static fn (Member $member): int => $member->lidnr,
+            $localMembers,
         );
 
-        foreach ($localUsers as $user) {
-            $lidnr = $user->lidnr;
-            $member = $user->member;
-
-            $scimUser = $this->userMapper->map(
-                new UserScimSource(
-                    lidnr: (string) $member->lidnr,
-                    firstName: $member->firstName,
-                    lastName: $member->lastName,
-                    email: $member->email,
-                    active: !$member->hidden && !$member->deleted,
-                ),
-            );
+        foreach ($localMembers as $member) {
+            $lidnr = $member->lidnr;
+            $scimUser = $this->userMapper->map(UserScimSource::fromMember($member));
 
             $link = $userLinks[$lidnr] ?? null;
             $remoteUser = null !== $link
@@ -370,8 +360,34 @@ final class ReconcileCommand extends Command
             $dispatch(new SyncUserMessage($lidnr), 'user');
         }
 
+        // A link for a member the register no longer holds is deactivated once. The deactivated
+        // payload hash is the marker that keeps the next nightly run from repeating the patch.
+        foreach ($userLinks as $lidnr => $link) {
+            if (
+                in_array(
+                    $lidnr,
+                    $localLidnrs,
+                    true,
+                )
+                || $link->payloadHash === $this->userMapper->deactivated($lidnr)->payloadHash()
+            ) {
+                continue;
+            }
+
+            $output->writeln(sprintf(
+                '    member %d: the member is gone from the register; the account is deactivated',
+                $lidnr,
+            ));
+            $dispatch(new SyncUserMessage($lidnr), 'user');
+        }
+
         // Only names in our own scheme can be ours; the source also lists the Authentik's native
-        // accounts, and the sync must never touch them.
+        // accounts, and the sync must never touch them. A linked account is ours even when its
+        // member is gone: the link was deliberately kept to keep the account deactivated.
+        $linkedRemoteIds = array_values(array_map(
+            static fn (ScimRemoteLink $link): string => $link->remoteId,
+            $userLinks,
+        ));
         $orphans = [];
         foreach ($remote as $user) {
             if (
@@ -383,6 +399,11 @@ final class ReconcileCommand extends Command
                 || in_array(
                     (int) $matches[1],
                     $localLidnrs,
+                    true,
+                )
+                || in_array(
+                    $user->remoteId,
+                    $linkedRemoteIds,
                     true,
                 )
             ) {

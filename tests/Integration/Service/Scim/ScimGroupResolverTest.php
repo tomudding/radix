@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Service\Scim;
 
 use App\DataFixtures\Member\MemberPopulationFixture;
+use App\Entity\Database\Enums\InstallationFunctions;
 use App\Entity\Database\Enums\MembershipTypes;
 use App\Entity\Decision\AssociationYear;
 use App\Entity\Decision\BoardMember;
@@ -13,6 +14,7 @@ use App\Entity\User\Enums\ScimLocalTypes;
 use App\Repository\Decision\BoardMemberRepository;
 use App\Repository\Decision\KeyholderRepository;
 use App\Repository\Decision\MemberRepository;
+use App\Repository\Decision\OrganMemberRepository;
 use App\Service\Scim\ScimGroupResolver;
 use App\Tests\Integration\DatabaseTestCase;
 use DateTimeImmutable;
@@ -180,6 +182,94 @@ final class ScimGroupResolverTest extends DatabaseTestCase
         self::assertEqualsCanonicalizing(
             $currentLidnrs,
             $group->memberLidnrs,
+        );
+    }
+
+    public function testItResolvesABodyFunctionDropToTheCurrentOfficeholders(): void
+    {
+        $chair = null;
+        foreach (self::getContainer()->get(OrganMemberRepository::class)->findAll() as $organMember) {
+            if (
+                InstallationFunctions::Chair === $organMember->function
+                && $organMember->isCurrent()
+            ) {
+                $chair = $organMember;
+
+                break;
+            }
+        }
+
+        self::assertNotNull(
+            $chair,
+            'The seed must have a current chair.',
+        );
+        $hash = $chair->organ->foundation->getHash();
+        $group = self::getContainer()->get(ScimGroupResolver::class)->resolve(
+            ScimLocalTypes::BodyFunction,
+            ScimGroupResolver::bodyFunctionKey(
+                $hash,
+                InstallationFunctions::Chair,
+            ),
+        );
+
+        self::assertNotNull($group);
+        self::assertSame(
+            'BODY_' . $chair->organ->abbr . '_Chair',
+            $group->displayName,
+        );
+        self::assertSame(
+            'BODY:' . $hash . ':' . InstallationFunctions::Chair->value,
+            $group->externalId,
+        );
+        self::assertContains(
+            $chair->member->lidnr,
+            $group->memberLidnrs,
+        );
+    }
+
+    public function testTheInactiveFraternitySeatIsSeparateFromTheActiveBody(): void
+    {
+        $inactive = null;
+        foreach (self::getContainer()->get(OrganMemberRepository::class)->findAll() as $organMember) {
+            if (
+                InstallationFunctions::InactiveMember === $organMember->function
+                && $organMember->isCurrent()
+            ) {
+                $inactive = $organMember;
+
+                break;
+            }
+        }
+
+        self::assertNotNull(
+            $inactive,
+            'The seed must have a current inactive fraternity seat.',
+        );
+        $hash = $inactive->organ->foundation->getHash();
+        $resolver = self::getContainer()->get(ScimGroupResolver::class);
+
+        $active = $resolver->resolve(
+            ScimLocalTypes::Body,
+            $hash,
+        );
+        self::assertNotNull($active);
+        self::assertNotContains(
+            $inactive->member->lidnr,
+            $active->memberLidnrs,
+        );
+
+        $inactiveGroup = $resolver->resolve(
+            ScimLocalTypes::Body,
+            $hash . ScimGroupResolver::BODY_INACTIVE_SUFFIX,
+        );
+        self::assertNotNull($inactiveGroup);
+        self::assertSame(
+            'BODY_' . $inactive->organ->abbr . '_Inactive',
+            $inactiveGroup->displayName,
+        );
+        self::assertContains(
+            $inactive->member->lidnr,
+            $inactiveGroup->memberLidnrs,
         );
     }
 

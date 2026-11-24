@@ -6,8 +6,8 @@ namespace App\Controller\User;
 
 use App\Entity\Application\Enums\AlertTypes;
 use App\Entity\User\Enums\UserRoles;
+use App\Repository\Decision\MemberRepository;
 use App\Repository\Decision\OrganRepository;
-use App\Repository\User\UserRepository;
 use App\Service\Scim\ScimSyncDispatcher;
 use App\Service\Scim\ScimSyncStatusProvider;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -32,7 +32,7 @@ class ScimSyncController extends AbstractController
     public function __construct(
         private readonly ScimSyncDispatcher $dispatcher,
         private readonly ScimSyncStatusProvider $statusProvider,
-        private readonly UserRepository $userRepository,
+        private readonly MemberRepository $memberRepository,
         private readonly OrganRepository $organRepository,
         private readonly TranslatorInterface $translator,
         private readonly bool $scimEnabled,
@@ -92,11 +92,11 @@ class ScimSyncController extends AbstractController
     public function syncUser(Request $request): Response
     {
         $lidnr = $request->request->getInt('lidnr');
-        if (null === $this->userRepository->find($lidnr)) {
+        if (null === $this->memberRepository->find($lidnr)) {
             $this->addFlash(
                 AlertTypes::Danger->value,
                 $this->translator->trans(
-                    'No account with membership number %lidnr%.',
+                    'No member with membership number %lidnr%.',
                     ['%lidnr%' => $lidnr],
                 ),
             );

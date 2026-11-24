@@ -12,6 +12,19 @@ use function trim;
  */
 final readonly class UserScimMapper
 {
+    /**
+     * The payload a member who is no longer in the register is left with: the account is
+     * deactivated, never deleted, so a link can be kept and a later re-creation adopts it.
+     */
+    public function deactivated(int $lidnr): ScimUser
+    {
+        return new ScimUser(
+            userName: 'm' . $lidnr,
+            externalId: (string) $lidnr,
+            active: false,
+        );
+    }
+
     public function map(UserScimSource $source): ScimUser
     {
         $emails = [];

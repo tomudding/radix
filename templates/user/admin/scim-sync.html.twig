@@ -84,12 +84,16 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td>{{ 'Accounts'|trans }}</td>
+                                <td>{{ 'Members'|trans }}</td>
                                 <td class="text-end">{{ status.counts[types.User.value] ?? 0 }}</td>
                             </tr>
                             <tr>
                                 <td>{{ 'Bodies'|trans }}</td>
                                 <td class="text-end">{{ status.counts[types.Body.value] ?? 0 }}</td>
+                            </tr>
+                            <tr>
+                                <td>{{ 'Body functions'|trans }}</td>
+                                <td class="text-end">{{ status.counts[types.BodyFunction.value] ?? 0 }}</td>
                             </tr>
                             <tr>
                                 <td>{{ 'Boards'|trans }}</td>
@@ -198,6 +202,8 @@
                                             {{ 'Account'|trans }}
                                         {% elseif types.Body == failure.localType %}
                                             {{ 'Body'|trans }}
+                                        {% elseif types.BodyFunction == failure.localType %}
+                                            {{ 'Body function'|trans }}
                                         {% elseif types.Board == failure.localType %}
                                             {{ 'Board'|trans }}
                                         {% else %}

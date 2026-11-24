@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Command\Scim;
 
 use App\Command\Scim\ReconcileCommand;
+use App\Entity\Decision\Member;
 use App\Entity\User\Enums\ScimLocalTypes;
 use App\Entity\User\ScimRemoteLink;
-use App\Entity\User\User;
 use App\Message\Scim\SyncGroupMembershipMessage;
 use App\Message\Scim\SyncGroupMessage;
 use App\Message\Scim\SyncUserMessage;
+use App\Repository\Decision\MemberRepository;
 use App\Repository\User\ScimRemoteLinkRepository;
-use App\Repository\User\UserRepository;
 use App\Service\Scim\GroupScimMapper;
 use App\Service\Scim\GroupScimSource;
 use App\Service\Scim\ResolvedScimGroupRef;
@@ -98,7 +98,7 @@ final class ReconcileCommandTest extends DatabaseTestCase
 
     public function testAMemberWithoutALinkIsDispatched(): void
     {
-        $lidnr = $this->localUsers()[0]->member->lidnr;
+        $lidnr = $this->localMembers()[0]->lidnr;
 
         $this->linkEverything(skipUsers: [$lidnr]);
         $this->sourceMirrorsLocal(excludeUsers: [$lidnr]);
@@ -119,7 +119,7 @@ final class ReconcileCommandTest extends DatabaseTestCase
 
     public function testAStalePayloadIsDispatched(): void
     {
-        $member = $this->localUsers()[0]->member;
+        $member = $this->localMembers()[0];
         $lidnr = $member->lidnr;
 
         $this->linkEverything();
@@ -150,7 +150,7 @@ final class ReconcileCommandTest extends DatabaseTestCase
 
     public function testASourceChangedUserIsDispatched(): void
     {
-        $lidnr = $this->localUsers()[0]->member->lidnr;
+        $lidnr = $this->localMembers()[0]->lidnr;
 
         $this->linkEverything();
         $this->sourceMirrorsLocal();
@@ -250,7 +250,7 @@ final class ReconcileCommandTest extends DatabaseTestCase
 
     public function testAVanishedRemoteUserIsDispatchedAndTheLinkIsDropped(): void
     {
-        $lidnr = $this->localUsers()[0]->member->lidnr;
+        $lidnr = $this->localMembers()[0]->lidnr;
 
         $this->linkEverything();
         $this->sourceMirrorsLocal(excludeUsers: [$lidnr]);
@@ -284,7 +284,7 @@ final class ReconcileCommandTest extends DatabaseTestCase
 
     public function testADryRunKeepsTheStaleLink(): void
     {
-        $lidnr = $this->localUsers()[0]->member->lidnr;
+        $lidnr = $this->localMembers()[0]->lidnr;
 
         $this->linkEverything();
         $this->sourceMirrorsLocal(excludeUsers: [$lidnr]);
@@ -370,10 +370,10 @@ final class ReconcileCommandTest extends DatabaseTestCase
         $this->invoke(['--full' => true]);
 
         $expected = [];
-        foreach ($this->localUsers() as $user) {
+        foreach ($this->localMembers() as $member) {
             $expected[] = [
                 'user',
-                (int) $user->member->lidnr,
+                (int) $member->lidnr,
             ];
         }
 
@@ -405,7 +405,7 @@ final class ReconcileCommandTest extends DatabaseTestCase
 
     public function testTheTypeOptionLimitsTheRun(): void
     {
-        $lidnr = $this->localUsers()[0]->member->lidnr;
+        $lidnr = $this->localMembers()[0]->lidnr;
         $key = $this->groupKey($this->aBodyGroupRef());
 
         $this->linkEverything(
@@ -476,7 +476,7 @@ final class ReconcileCommandTest extends DatabaseTestCase
             $this->client,
             $container->get(UserScimMapper::class),
             $container->get(GroupScimMapper::class),
-            $container->get(UserRepository::class),
+            $container->get(MemberRepository::class),
             $container->get(ScimRemoteLinkRepository::class),
             $container->get(ScimGroupResolver::class),
             $this->bus,
@@ -535,8 +535,8 @@ final class ReconcileCommandTest extends DatabaseTestCase
     ): void {
         $em = $this->entityManager;
 
-        foreach ($this->localUsers() as $user) {
-            $lidnr = (int) $user->member->lidnr;
+        foreach ($this->localMembers() as $member) {
+            $lidnr = (int) $member->lidnr;
             if (
                 in_array(
                     $lidnr,
@@ -551,7 +551,7 @@ final class ReconcileCommandTest extends DatabaseTestCase
                 $this->linkFor(
                     ScimLocalTypes::User,
                     (string) $lidnr,
-                    $this->userHash($user),
+                    $this->memberHash($member),
                     'user-remote-' . $lidnr,
                 ),
             );
@@ -619,19 +619,11 @@ final class ReconcileCommandTest extends DatabaseTestCase
         return $link;
     }
 
-    private function userHash(User $user): string
+    private function memberHash(Member $member): string
     {
-        $member = $user->member;
-
-        return self::getContainer()->get(UserScimMapper::class)->map(
-            new UserScimSource(
-                lidnr: (string) $member->lidnr,
-                firstName: $member->firstName,
-                lastName: $member->lastName,
-                email: $member->email,
-                active: !$member->hidden && !$member->deleted,
-            ),
-        )->payloadHash();
+        return self::getContainer()->get(UserScimMapper::class)
+            ->map(UserScimSource::fromMember($member))
+            ->payloadHash();
     }
 
     /**
@@ -646,27 +638,17 @@ final class ReconcileCommandTest extends DatabaseTestCase
         array $excludeUsers = [],
         array $excludeGroupKeys = [],
     ): void {
+        $userMapper = self::getContainer()->get(UserScimMapper::class);
         $this->client->listedUsers = array_values(
             array_map(
-                static fn (User $user): ScimUser => new ScimUser(
-                    userName: 'm' . $user->member->lidnr,
-                    externalId: (string) $user->member->lidnr,
-                    emails: null !== $user->member->email && '' !== $user->member->email
-                        ? [
-                            new ScimEmail(
-                                $user->member->email,
-                                primary: true,
-                                type: 'work',
-                            ),
-                        ]
-                        : [],
-                    active: !$user->member->hidden && !$user->member->deleted,
-                    remoteId: 'user-remote-' . $user->member->lidnr,
+                fn (Member $member): ScimUser => $this->withRemoteId(
+                    $userMapper->map(UserScimSource::fromMember($member)),
+                    'user-remote-' . $member->lidnr,
                 ),
                 array_filter(
-                    $this->localUsers(),
-                    static fn (User $user): bool => !in_array(
-                        $user->member->lidnr,
+                    $this->localMembers(),
+                    static fn (Member $member): bool => !in_array(
+                        $member->lidnr,
                         $excludeUsers,
                         true,
                     ),
@@ -714,6 +696,22 @@ final class ReconcileCommandTest extends DatabaseTestCase
         return $ref->localType->value . ':' . $ref->localId;
     }
 
+    private function withRemoteId(
+        ScimUser $user,
+        string $remoteId,
+    ): ScimUser {
+        return new ScimUser(
+            userName: $user->userName,
+            externalId: $user->externalId,
+            givenName: $user->givenName,
+            familyName: $user->familyName,
+            formattedName: $user->formattedName,
+            emails: $user->emails,
+            active: $user->active,
+            remoteId: $remoteId,
+        );
+    }
+
     /**
      * The first body group the projection resolves, the smallest group kind to target an
      * individual test at.
@@ -730,10 +728,10 @@ final class ReconcileCommandTest extends DatabaseTestCase
     }
 
     /**
-     * @return list<User>
+     * @return list<Member>
      */
-    private function localUsers(): array
+    private function localMembers(): array
     {
-        return self::getContainer()->get(UserRepository::class)->findAll();
+        return self::getContainer()->get(MemberRepository::class)->findAll();
     }
 }

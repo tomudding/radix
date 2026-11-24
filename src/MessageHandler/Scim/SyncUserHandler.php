@@ -10,10 +10,11 @@ use App\Exception\Scim\ScimException;
 use App\Exception\Scim\ScimNotFoundException;
 use App\Message\Scim\SyncGroupMembershipMessage;
 use App\Message\Scim\SyncUserMessage;
+use App\Repository\Decision\MemberRepository;
 use App\Repository\User\ScimRemoteLinkRepository;
-use App\Repository\User\UserRepository;
 use App\Service\Scim\ScimClientInterface;
 use App\Service\Scim\ScimGroupResolver;
+use App\Service\Scim\ScimOperation;
 use App\Service\Scim\ScimUser;
 use App\Service\Scim\UserScimMapper;
 use App\Service\Scim\UserScimSource;
@@ -26,10 +27,11 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Pushes one member's account to the SCIM source. The message carries the id only and the handler
- * loads the state, so a redelivery arrives at the same result as the original. A deleted account
- * is never removed from the source (the deletion policy); it is synced inactive and the mappings
- * of every group the member belongs to are resynced, because those groups may finally be able to
- * resolve their membership once a missing link exists.
+ * loads the state, so a redelivery arrives at the same result as the original. The register's
+ * members are the source of truth, not only the ones with a website account. A member who is
+ * deleted or lapsed is synced inactive and removed from their groups; a member the projection no
+ * longer holds is deactivated remotely, never deleted. The memberships are resynced too, because
+ * those groups may finally be able to resolve a member once a missing link exists.
  */
 #[AsMessageHandler]
 class SyncUserHandler
@@ -37,7 +39,7 @@ class SyncUserHandler
     public function __construct(
         private readonly ScimClientInterface $client,
         private readonly UserScimMapper $mapper,
-        private readonly UserRepository $userRepository,
+        private readonly MemberRepository $memberRepository,
         private readonly ScimRemoteLinkRepository $linkRepository,
         private readonly ScimGroupResolver $groupResolver,
         #[Autowire(service: 'doctrine.orm.application_entity_manager')]
@@ -61,29 +63,21 @@ class SyncUserHandler
             return;
         }
 
-        $user = $this->userRepository->find($lidnr);
-        if (null === $user) {
-            // The account no longer exists. Nothing is removed remotely under the deletion
-            // policy, but the membership of every group of the member may have changed.
+        $member = $this->memberRepository->find($lidnr);
+        if (null === $member) {
+            // The member no longer exists. Nothing is removed remotely, but the account is
+            // deactivated so the old identity cannot keep logging in; the link stays so a later
+            // member with the same number can adopt the deactivated account.
             $this->logger->debug(
-                'SCIM sync skipped; the account of member {lidnr} no longer exists.',
+                'SCIM sync deactivates member {lidnr}; they are no longer in the register.',
                 ['lidnr' => $lidnr],
             );
-            $this->resyncGroupMemberships($lidnr);
+            $this->deactivate($lidnr);
 
             return;
         }
 
-        $member = $user->member;
-        $scimUser = $this->mapper->map(
-            new UserScimSource(
-                lidnr: (string) $member->lidnr,
-                firstName: $member->firstName,
-                lastName: $member->lastName,
-                email: $member->email,
-                active: !$member->hidden && !$member->deleted,
-            ),
-        );
+        $scimUser = $this->mapper->map(UserScimSource::fromMember($member));
 
         $hash = $scimUser->payloadHash();
         $link = $this->linkRepository->findForUser($lidnr);
@@ -128,6 +122,56 @@ class SyncUserHandler
         );
 
         $this->resyncGroupMemberships($lidnr);
+    }
+
+    /**
+     * Deactivates the remote account of a member the register no longer holds. The link is kept
+     * and marked with the deactivated payload, so the nightly reconciliation can see that this
+     * member was deliberately disabled and does not dispatch the same patch every night.
+     */
+    private function deactivate(int $lidnr): void
+    {
+        $link = $this->linkRepository->findForUser($lidnr);
+        if (null === $link) {
+            return;
+        }
+
+        $deactivated = $this->mapper->deactivated($lidnr);
+        try {
+            $this->client->patchUser(
+                $link->remoteId,
+                [
+                    ScimOperation::replace(
+                        'active',
+                        false,
+                    ),
+                ],
+            );
+        } catch (ScimNotFoundException) {
+            // The remote account is gone; there is nothing left to deactivate.
+            $this->entityManager->remove($link);
+            $this->entityManager->flush();
+
+            return;
+        } catch (ScimException $exception) {
+            $this->fail(
+                $lidnr,
+                $link,
+                $exception,
+            );
+
+            throw $exception;
+        }
+
+        $link->payloadHash = $deactivated->payloadHash();
+        $link->lastSyncedAt = new DateTimeImmutable();
+        $link->lastError = null;
+        $this->entityManager->flush();
+
+        $this->logger->info(
+            'SCIM user {lidnr} is deactivated; the member is no longer in the register.',
+            ['lidnr' => $lidnr],
+        );
     }
 
     private function sync(

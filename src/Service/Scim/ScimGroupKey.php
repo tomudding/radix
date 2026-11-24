@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Scim;
 
 use App\Entity\Database\Enums\BoardFunctions;
+use App\Entity\Database\Enums\InstallationFunctions;
 use App\Entity\Decision\AssociationYear;
 
 use function sprintf;
@@ -62,6 +63,57 @@ final readonly class ScimGroupKey
                 $abrogationYear,
             ),
             externalId: 'BODY:' . $foundationHash,
+        );
+    }
+
+    /**
+     * The inactive members of a fraternity. An inactive seat is a separate membership of the body
+     * rather than a role within it, so it gets a drop of its own.
+     */
+    public static function inactiveBody(
+        string $abbr,
+        string $foundationHash,
+        ?int $abrogationYear = null,
+    ): self {
+        return new self(
+            displayName: null === $abrogationYear
+                ? 'BODY_' . $abbr . '_Inactive'
+                : sprintf(
+                    'HIST_BODY_%s_Inactive (%d)',
+                    $abbr,
+                    $abrogationYear,
+                ),
+            externalId: 'BODY:' . $foundationHash . ':inactive',
+        );
+    }
+
+    /**
+     * A function held within a body. The external identifier keeps the function's Dutch value, the
+     * stable identity the decisions carry; the display name uses the English case name, like the
+     * board function drops.
+     */
+    public static function bodyFunction(
+        string $abbr,
+        string $foundationHash,
+        InstallationFunctions $function,
+        ?int $abrogationYear = null,
+    ): self {
+        $name = $function->name;
+
+        return new self(
+            displayName: null === $abrogationYear
+                ? sprintf(
+                    'BODY_%s_%s',
+                    $abbr,
+                    $name,
+                )
+                : sprintf(
+                    'HIST_BODY_%s_%s (%d)',
+                    $abbr,
+                    $name,
+                    $abrogationYear,
+                ),
+            externalId: 'BODY:' . $foundationHash . ':' . $function->value,
         );
     }
 

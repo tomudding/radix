@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Service\Scim;
 
 use App\Entity\Database\Enums\BoardFunctions;
+use App\Entity\Database\Enums\InstallationFunctions;
 use App\Entity\Database\Enums\MembershipTypes;
+use App\Entity\Database\Enums\OrganTypes;
 use App\Entity\Decision\AssociationYear;
 use App\Entity\Decision\BoardMember;
 use App\Entity\Decision\Organ;
@@ -17,7 +19,6 @@ use App\Repository\Decision\OrganMemberRepository;
 use App\Repository\Decision\OrganRepository;
 use DateTimeImmutable;
 
-use function array_map;
 use function array_unique;
 use function array_values;
 use function is_numeric;
@@ -26,18 +27,20 @@ use function sprintf;
 use function str_ends_with;
 use function str_starts_with;
 use function strlen;
+use function strrpos;
 use function substr;
 
 /**
  * Turns a local group reference — a body's foundation hash, a board drop's key or a membership
  * state — into the display name, the external identifier and the member numbers.
  *
- * A body's membership is its current members while it is active and its members at the abrogation
- * date once abrogated; a board drop is either one association year's board, the board in office or
- * the last six boards together; a status group is the active members of one membership type, or
- * the formal classes together and the graduates. The mapping is read straight off the projection,
- * so whatever a dispatch or a reconciliation feeds it in, the handler that consumes it sees the
- * same group.
+ * A body's membership is its active members while it is active and its members at the abrogation
+ * date once abrogated; a fraternity's inactive seat is a separate drop. A body function group
+ * holds the current officeholders of one function. A board drop is either one association year's
+ * board, the board in office or the last six boards together; a status group is the active
+ * members of one membership type, or the formal classes together and the active graduates. The
+ * mapping is read straight off the projection, so whatever a dispatch or a reconciliation feeds
+ * it in, the handler that consumes it sees the same group.
  */
 final class ScimGroupResolver
 {
@@ -50,6 +53,12 @@ final class ScimGroupResolver
      */
     public const string BOARD_FUNCTION_PREFIX = 'function:';
     public const string BOARD_FUNCTION_PLUS_SUFFIX = ':plus';
+
+    /**
+     * The local id suffix of a fraternity's inactive-members group. The group shares the body
+     * kind and foundation hash; the suffix distinguishes it from the active body group.
+     */
+    public const string BODY_INACTIVE_SUFFIX = ':inactive';
 
     public const string STATUS_MEMBERS = 'members';
     public const string STATUS_GRADUATES = 'graduates';
@@ -80,26 +89,59 @@ final class ScimGroupResolver
                 $on,
             ),
             ScimLocalTypes::Status => $this->statusGroup($localId),
+            ScimLocalTypes::BodyFunction => $this->bodyFunctionGroup($localId),
             ScimLocalTypes::User => null,
         };
     }
 
     /**
      * Every group reference the projection has, for a full sync or a reconciliation: the bodies
-     * (active and abrogated, by foundation hash), the board years that ever had a term plus the
-     * two fixed drops, and the statuses. The reconciliation walks this so a group that a write
-     * never touched is still brought in line.
+     * (active and abrogated, by foundation hash), the inactive drop of a fraternity, every body
+     * function that ever had an officeholder, the board years that ever had a term plus the two
+     * fixed drops, and the statuses. The reconciliation walks this so a group that a write never
+     * touched is still brought in line.
      *
      * @return list<ResolvedScimGroupRef>
      */
     public function allGroupRefs(): array
     {
         $refs = [];
-        foreach ($this->organIds() as $foundationHash) {
+        $organRefs = $this->organRefs();
+
+        foreach ($organRefs as $organRef) {
             $refs[] = new ResolvedScimGroupRef(
                 ScimLocalTypes::Body,
-                $foundationHash,
+                $organRef['hash'],
             );
+            if (!$organRef['allowsInactive']) {
+                continue;
+            }
+
+            $refs[] = new ResolvedScimGroupRef(
+                ScimLocalTypes::Body,
+                $organRef['hash'] . self::BODY_INACTIVE_SUFFIX,
+            );
+        }
+
+        foreach ($this->organMemberRepository->findAllFunctionRefsByOrgan() as $organId => $functions) {
+            $hash = $organRefs[$organId]['hash'] ?? null;
+            if (null === $hash) {
+                continue;
+            }
+
+            foreach ($functions as $function) {
+                if ($function->isAdministrative()) {
+                    continue;
+                }
+
+                $refs[] = new ResolvedScimGroupRef(
+                    ScimLocalTypes::BodyFunction,
+                    self::bodyFunctionKey(
+                        $hash,
+                        $function,
+                    ),
+                );
+            }
         }
 
         $boardKeys = [
@@ -144,26 +186,100 @@ final class ScimGroupResolver
     }
 
     /**
-     * The group references a member currently belongs to: their bodies, the board drops their
-     * current installation appears in, and their status. This is what a user sync must resync
-     * once the member's link exists, because those groups could not resolve the member before.
+     * The group references a body owns: its active group, its inactive group where the body has
+     * one, and every function the body ever used. A single-body push brings all of them along.
+     *
+     * @return list<ResolvedScimGroupRef>
+     */
+    public function refsForBody(string $foundationHash): array
+    {
+        $organ = $this->organRepository->findByFoundationHash($foundationHash);
+        if (null === $organ) {
+            return [];
+        }
+
+        $refs = [
+            new ResolvedScimGroupRef(
+                ScimLocalTypes::Body,
+                $foundationHash,
+            ),
+        ];
+        if ($organ->type->allowsInactiveMembers()) {
+            $refs[] = new ResolvedScimGroupRef(
+                ScimLocalTypes::Body,
+                $foundationHash . self::BODY_INACTIVE_SUFFIX,
+            );
+        }
+
+        foreach ($this->organMemberRepository->findFunctionsByOrgan((int) $organ->id) as $function) {
+            if ($function->isAdministrative()) {
+                continue;
+            }
+
+            $refs[] = new ResolvedScimGroupRef(
+                ScimLocalTypes::BodyFunction,
+                self::bodyFunctionKey(
+                    $foundationHash,
+                    $function,
+                ),
+            );
+        }
+
+        return $refs;
+    }
+
+    /**
+     * The group references a member currently belongs to: their bodies and body functions, the
+     * board drops their current installation appears in, and their status. This is what a user
+     * sync must resync once the member's link exists, because those groups could not resolve the
+     * member before.
      *
      * @return list<ResolvedScimGroupRef>
      */
     public function refsForMember(int $lidnr): array
     {
         $refs = [];
+        $seen = [];
+        $add = static function (ResolvedScimGroupRef $ref) use (&$refs, &$seen): void {
+            $key = $ref->localType->value . ':' . $ref->localId;
+            if (isset($seen[$key])) {
+                return;
+            }
 
-        foreach ($this->organMemberRepository->findCurrentOrganIds($lidnr) as $organId) {
-            $hash = $this->foundationHashOfOrgan($organId);
+            $seen[$key] = true;
+            $refs[] = $ref;
+        };
+
+        foreach ($this->organMemberRepository->findCurrentFunctionRefsForMember($lidnr) as $ref) {
+            $hash = $this->foundationHashOfOrgan($ref['organId']);
             if (null === $hash) {
                 continue;
             }
 
-            $refs[] = new ResolvedScimGroupRef(
+            if (InstallationFunctions::InactiveMember === $ref['function']) {
+                $add(new ResolvedScimGroupRef(
+                    ScimLocalTypes::Body,
+                    $hash . self::BODY_INACTIVE_SUFFIX,
+                ));
+
+                continue;
+            }
+
+            $add(new ResolvedScimGroupRef(
                 ScimLocalTypes::Body,
                 $hash,
-            );
+            ));
+            if ($ref['function']->isAdministrative()) {
+                continue;
+            }
+
+            $add(new ResolvedScimGroupRef(
+                ScimLocalTypes::BodyFunction,
+                self::bodyFunctionKey(
+                    $hash,
+                    $ref['function'],
+                ),
+            ));
         }
 
         $boardKeys = [
@@ -176,10 +292,10 @@ final class ScimGroupResolver
         }
 
         foreach ($boardKeys as $boardKey) {
-            $refs[] = new ResolvedScimGroupRef(
+            $add(new ResolvedScimGroupRef(
                 ScimLocalTypes::Board,
                 $boardKey,
-            );
+            ));
         }
 
         $member = $this->memberRepository->find($lidnr);
@@ -188,10 +304,10 @@ final class ScimGroupResolver
             foreach ($member->getBoardInstallations() as $installation) {
                 $functionKey = self::boardFunctionKey($installation->function);
                 if ($member->isCurrentBoard($installation)) {
-                    $refs[] = new ResolvedScimGroupRef(
+                    $add(new ResolvedScimGroupRef(
                         ScimLocalTypes::Board,
                         $functionKey,
-                    );
+                    ));
                 }
 
                 if (
@@ -203,16 +319,15 @@ final class ScimGroupResolver
                     continue;
                 }
 
-                $refs[] = new ResolvedScimGroupRef(
+                $add(new ResolvedScimGroupRef(
                     ScimLocalTypes::Board,
                     $functionKey . self::BOARD_FUNCTION_PLUS_SUFFIX,
-                );
+                ));
             }
         }
 
-        $statusRefs = $this->statusRefsForMember($lidnr);
-        foreach ($statusRefs as $statusRef) {
-            $refs[] = $statusRef;
+        foreach ($this->statusRefsForMember($lidnr) as $statusRef) {
+            $add($statusRef);
         }
 
         return $refs;
@@ -238,16 +353,29 @@ final class ScimGroupResolver
             );
     }
 
-    private function bodyGroup(string $foundationHash): ?ResolvedScimGroup
+    private function bodyGroup(string $localId): ?ResolvedScimGroup
     {
-        $organ = $this->organRepository->findByFoundationHash($foundationHash);
+        if (
+            str_ends_with(
+                $localId,
+                self::BODY_INACTIVE_SUFFIX,
+            )
+        ) {
+            return $this->inactiveBodyGroup(substr(
+                $localId,
+                0,
+                -strlen(self::BODY_INACTIVE_SUFFIX),
+            ));
+        }
+
+        $organ = $this->organRepository->findByFoundationHash($localId);
         if (null === $organ) {
             return null;
         }
 
         $key = $this->bodyKey(
             $organ,
-            $foundationHash,
+            $localId,
         );
 
         $memberLidnrs = null === $organ->abrogationDate
@@ -255,6 +383,111 @@ final class ScimGroupResolver
             : $this->organMemberRepository->findMemberLidnrsByDate(
                 (int) $organ->id,
                 $organ->abrogationDate,
+                null,
+                false,
+            );
+
+        return new ResolvedScimGroup(
+            displayName: $key->displayName,
+            externalId: $key->externalId,
+            memberLidnrs: $memberLidnrs,
+        );
+    }
+
+    /**
+     * A fraternity's inactive members. Only a fraternity has this seat; every other body type
+     * resolves to no group, so a stale link for a former fraternity can be left alone.
+     */
+    private function inactiveBodyGroup(string $foundationHash): ?ResolvedScimGroup
+    {
+        $organ = $this->organRepository->findByFoundationHash($foundationHash);
+        if (
+            null === $organ
+            || !$organ->type->allowsInactiveMembers()
+        ) {
+            return null;
+        }
+
+        $abrogationYear = null === $organ->abrogationDate
+            ? null
+            : (int) $organ->abrogationDate->format('Y');
+        $key = ScimGroupKey::inactiveBody(
+            $organ->abbr,
+            $foundationHash,
+            $abrogationYear,
+        );
+
+        $memberLidnrs = null === $organ->abrogationDate
+            ? $this->organMemberRepository->findCurrentMemberLidnrs(
+                (int) $organ->id,
+                InstallationFunctions::InactiveMember,
+                true,
+            )
+            : $this->organMemberRepository->findMemberLidnrsByDate(
+                (int) $organ->id,
+                $organ->abrogationDate,
+                InstallationFunctions::InactiveMember,
+                true,
+            );
+
+        return new ResolvedScimGroup(
+            displayName: $key->displayName,
+            externalId: $key->externalId,
+            memberLidnrs: $memberLidnrs,
+        );
+    }
+
+    /**
+     * The current officeholders of one function within a body. The local id is the body's
+     * foundation hash followed by the function's Dutch value.
+     */
+    private function bodyFunctionGroup(string $localId): ?ResolvedScimGroup
+    {
+        $separator = strrpos(
+            $localId,
+            ':',
+        );
+        if (false === $separator) {
+            return null;
+        }
+
+        $foundationHash = substr(
+            $localId,
+            0,
+            $separator,
+        );
+        $function = InstallationFunctions::tryFrom(substr($localId, $separator + 1));
+        if (
+            null === $function
+            || $function->isAdministrative()
+        ) {
+            return null;
+        }
+
+        $organ = $this->organRepository->findByFoundationHash($foundationHash);
+        if (null === $organ) {
+            return null;
+        }
+
+        $abrogationYear = null === $organ->abrogationDate
+            ? null
+            : (int) $organ->abrogationDate->format('Y');
+        $key = ScimGroupKey::bodyFunction(
+            $organ->abbr,
+            $foundationHash,
+            $function,
+            $abrogationYear,
+        );
+
+        $memberLidnrs = null === $organ->abrogationDate
+            ? $this->organMemberRepository->findCurrentMemberLidnrs(
+                (int) $organ->id,
+                $function,
+            )
+            : $this->organMemberRepository->findMemberLidnrsByDate(
+                (int) $organ->id,
+                $organ->abrogationDate,
+                $function,
             );
 
         return new ResolvedScimGroup(
@@ -375,6 +608,17 @@ final class ScimGroupResolver
     }
 
     /**
+     * The local id of a body function group. The foundation hash names the body and the
+     * function's Dutch value is the stable identity the decisions carry.
+     */
+    public static function bodyFunctionKey(
+        string $foundationHash,
+        InstallationFunctions $function,
+    ): string {
+        return $foundationHash . ':' . $function->value;
+    }
+
+    /**
      * The local id of a board function drop. The function's Dutch value is the stable identity
      * the decisions carry; the display name and external id render the English case name.
      */
@@ -431,9 +675,10 @@ final class ScimGroupResolver
     }
 
     /**
-     * The status groups a member belongs to: their own type's group plus, when the type is a
-     * formal membership, the MEMBERS group; when it is a graduate, the GRADUATES group; and the
-     * KEYHOLDERS group while their key grant is current.
+     * The status groups a member can belong to: every type group, the formal-members and
+     * graduates drops, and the keyholders while their grant is current. Every type group is
+     * returned on purpose: after a type change the old group has to be reconciled too, and the
+     * membership handler computes that group's current membership from the projection.
      *
      * @return list<ResolvedScimGroupRef>
      */
@@ -444,17 +689,21 @@ final class ScimGroupResolver
             return [];
         }
 
-        $refs = [
-            new ResolvedScimGroupRef(
+        $refs = [];
+        foreach (MembershipTypes::cases() as $type) {
+            $refs[] = new ResolvedScimGroupRef(
                 ScimLocalTypes::Status,
-                $member->type->value,
-            ),
-        ];
+                $type->value,
+            );
+        }
+
         $refs[] = new ResolvedScimGroupRef(
             ScimLocalTypes::Status,
-            $member->type->isFormalMember()
-                ? self::STATUS_MEMBERS
-                : self::STATUS_GRADUATES,
+            self::STATUS_MEMBERS,
+        );
+        $refs[] = new ResolvedScimGroupRef(
+            ScimLocalTypes::Status,
+            self::STATUS_GRADUATES,
         );
         if ($member->isKeyholder()) {
             $refs[] = new ResolvedScimGroupRef(
@@ -467,16 +716,18 @@ final class ScimGroupResolver
     }
 
     /**
-     * The foundation hash of every body the projection holds, active and abrogated. This is the
-     * complete set a reconciliation reconciles, because a body that was never written to after a
-     * dispatch still has a group on the source.
+     * Every body the projection holds, with the foundation hash and whether its type has the
+     * inactive seat. A body that was never written to after a dispatch still has a group on the
+     * source, which is why the reconciliation walks this complete set.
      *
-     * @return list<string>
+     * @return array<int, array{hash: string, allowsInactive: bool}>
      */
-    private function organIds(): array
+    private function organRefs(): array
     {
         $rows = $this->organRepository->createQueryBuilder('o')
             ->select(
+                'o.id AS id',
+                'o.type AS type',
                 'f.meeting_type AS meetingType',
                 'f.meeting_number AS meetingNumber',
                 'f.decision_point AS decisionPoint',
@@ -490,17 +741,22 @@ final class ScimGroupResolver
             ->getQuery()
             ->getScalarResult();
 
-        return array_values(array_map(
-            static fn (array $row): string => sprintf(
-                '%s-%d.%d.%d.%d',
-                (string) $row['meetingType'],
-                (int) $row['meetingNumber'],
-                (int) $row['decisionPoint'],
-                (int) $row['decisionNumber'],
-                (int) $row['sequence'],
-            ),
-            $rows,
-        ));
+        $refs = [];
+        foreach ($rows as $row) {
+            $refs[(int) $row['id']] = [
+                'hash' => sprintf(
+                    '%s-%d.%d.%d.%d',
+                    (string) $row['meetingType'],
+                    (int) $row['meetingNumber'],
+                    (int) $row['decisionPoint'],
+                    (int) $row['decisionNumber'],
+                    (int) $row['sequence'],
+                ),
+                'allowsInactive' => OrganTypes::from((string) $row['type'])->allowsInactiveMembers(),
+            ];
+        }
+
+        return $refs;
     }
 
     /**

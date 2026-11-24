@@ -52,6 +52,7 @@ final class DatabaseDeletionListener
         }
 
         $entity = $args->getObject();
+        $scimGroupRefs = [];
 
         switch (true) {
             case $entity instanceof Address:
@@ -61,7 +62,8 @@ final class DatabaseDeletionListener
             case $entity instanceof Member:
                 // A member any decision still names is stripped of their data rather than deleted, so what arrives
                 // here is a member the projection is free to drop; the rest of what the site stores about them is
-                // removed with the row.
+                // removed with the row. The SCIM groups are read while the projection still contains the member.
+                $scimGroupRefs = $this->scimSync->refsForMember($entity->lidnr);
                 $this->memberService->deleteMember($entity);
                 break;
 
@@ -93,6 +95,9 @@ final class DatabaseDeletionListener
             return;
         }
 
-        $this->scimSync->memberRemoved($entity->lidnr);
+        $this->scimSync->memberRemoved(
+            $entity->lidnr,
+            $scimGroupRefs,
+        );
     }
 }

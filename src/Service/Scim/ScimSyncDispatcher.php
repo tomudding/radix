@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Scim;
 
 use App\Entity\Database\Decision as LedgerDecision;
+use App\Entity\Database\Enums\InstallationFunctions;
 use App\Entity\Database\SubDecision;
 use App\Entity\Database\SubDecision\Annulment;
 use App\Entity\Database\SubDecision\Board\Discharge as BoardDischarge;
@@ -13,13 +14,14 @@ use App\Entity\Database\SubDecision\Board\Release as BoardRelease;
 use App\Entity\Database\SubDecision\Discharge;
 use App\Entity\Database\SubDecision\Foundation;
 use App\Entity\Database\SubDecision\FoundationReference;
+use App\Entity\Database\SubDecision\Installation;
 use App\Entity\Database\SubDecision\Key\Granting as KeyGranting;
 use App\Entity\Database\SubDecision\Key\Withdrawal as KeyWithdrawal;
 use App\Entity\User\Enums\ScimLocalTypes;
 use App\Message\Scim\SyncGroupMembershipMessage;
 use App\Message\Scim\SyncGroupMessage;
 use App\Message\Scim\SyncUserMessage;
-use App\Repository\User\UserRepository;
+use App\Repository\Decision\MemberRepository;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 use function sprintf;
@@ -29,26 +31,26 @@ use function sprintf;
  * request from the sync page. Every handler re-reads the state itself, so only identifiers
  * travel.
  *
- * A body write dispatches the body group by its foundation hash; a board write dispatches the
- * board drops the change lands in, including the function drop of the member it names; a key
- * grant or withdrawal dispatches the fixed keyholders group. Individual per-year board groups
- * are left to the reconciliation, which enumerates every year; a dispatch only needs the
- * current and recent drops to stay current. The administrator's requests reuse the same
- * messages: a per-object sync for one body or member, or the full sweep that dispatches every
- * user and group the projection has.
+ * A body write dispatches the body group and the function group of the seat it changes; a board
+ * write dispatches the board drops the change lands in, including the function drop of the
+ * member it names; a key grant or withdrawal dispatches the fixed keyholders group. Individual
+ * per-year board groups are left to the reconciliation, which enumerates every year; a dispatch
+ * only needs the current and recent drops to stay current. The administrator's requests reuse
+ * the same messages: a per-object sync for one body or member, or the full sweep that dispatches
+ * every member and group the projection has.
  */
 final readonly class ScimSyncDispatcher
 {
     public function __construct(
         private MessageBusInterface $messageBus,
-        private UserRepository $userRepository,
+        private MemberRepository $memberRepository,
         private ScimGroupResolver $groupResolver,
         private bool $scimEnabled,
     ) {
     }
 
     /**
-     * A member's account data has changed, or their account has come into existence; sync the account.
+     * A member's data has changed, or the member has come into existence; sync the account.
      */
     public function memberChanged(int $lidnr): void
     {
@@ -62,13 +64,43 @@ final readonly class ScimSyncDispatcher
     /**
      * A member has been removed from the register.
      *
-     * The user message keeps the account's bookkeeping in line; nothing is deleted from the
-     * source, and the membership handlers remove the member from whatever the source still lists
-     * once the projection no longer holds the member.
+     * The groups the member was in are passed in, read while the projection still held them. The
+     * user message deactivates the account; the membership handlers remove the member from
+     * whatever the source still lists once the projection no longer holds the member.
+     *
+     * @param list<ResolvedScimGroupRef> $refs
      */
-    public function memberRemoved(int $lidnr): void
-    {
+    public function memberRemoved(
+        int $lidnr,
+        array $refs,
+    ): void {
+        if (!$this->scimEnabled) {
+            return;
+        }
+
         $this->memberChanged($lidnr);
+
+        foreach ($refs as $ref) {
+            $this->messageBus->dispatch(new SyncGroupMembershipMessage(
+                $ref->localType,
+                $ref->localId,
+            ));
+        }
+    }
+
+    /**
+     * The group references a member belongs to, read before a deletion removes the member from
+     * the projection.
+     *
+     * @return list<ResolvedScimGroupRef>
+     */
+    public function refsForMember(int $lidnr): array
+    {
+        if (!$this->scimEnabled) {
+            return [];
+        }
+
+        return $this->groupResolver->refsForMember($lidnr);
     }
 
     /**
@@ -90,6 +122,35 @@ final readonly class ScimSyncDispatcher
             $this->messageBus->dispatch(new SyncGroupMembershipMessage(
                 ScimLocalTypes::Body,
                 $hash,
+            ));
+        }
+
+        $seen = [];
+        foreach ($this->bodyFunctionRefs($subDecision) as $ref) {
+            if (InstallationFunctions::InactiveMember === $ref['function']) {
+                $localType = ScimLocalTypes::Body;
+                $localId = $ref['hash'] . ScimGroupResolver::BODY_INACTIVE_SUFFIX;
+            } else {
+                $localType = ScimLocalTypes::BodyFunction;
+                $localId = ScimGroupResolver::bodyFunctionKey(
+                    $ref['hash'],
+                    $ref['function'],
+                );
+            }
+
+            $key = $localType->value . ':' . $localId;
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $this->messageBus->dispatch(new SyncGroupMessage(
+                $localType,
+                $localId,
+            ));
+            $this->messageBus->dispatch(new SyncGroupMembershipMessage(
+                $localType,
+                $localId,
             ));
         }
 
@@ -176,7 +237,54 @@ final readonly class ScimSyncDispatcher
     }
 
     /**
-     * Syncs one body, by its foundation hash — the same identifier a body write dispatches.
+     * The body function groups a subdecision's projection changes. An inactive seat is dispatched
+     * as the body's inactive group; every other function has a group of its own. An annulment
+     * names no installation, so its function groups come from its target's subdecisions.
+     *
+     * @return list<array{hash: string, function: InstallationFunctions}>
+     */
+    private function bodyFunctionRefs(SubDecision $subDecision): array
+    {
+        if ($subDecision instanceof Annulment) {
+            $refs = [];
+            foreach ($subDecision->target->getSubdecisions() as $child) {
+                $refs = [
+                    ...$refs,
+                    ...$this->bodyFunctionRefs($child),
+                ];
+            }
+
+            return $refs;
+        }
+
+        $function = match (true) {
+            $subDecision instanceof Installation => $subDecision->function,
+            $subDecision instanceof Discharge => $subDecision->installation->function,
+            default => null,
+        };
+        if (
+            null === $function
+            || InstallationFunctions::Member === $function
+        ) {
+            return [];
+        }
+
+        $foundation = $this->foundationOf($subDecision);
+        if (null === $foundation) {
+            return [];
+        }
+
+        return [
+            [
+                'hash' => $this->projectionHash($foundation),
+                'function' => $function,
+            ],
+        ];
+    }
+
+    /**
+     * Syncs one body and every group it owns, by its foundation hash — the same identifier a body
+     * write dispatches.
      */
     public function syncBody(string $foundationHash): void
     {
@@ -184,20 +292,22 @@ final readonly class ScimSyncDispatcher
             return;
         }
 
-        $this->messageBus->dispatch(new SyncGroupMessage(
-            ScimLocalTypes::Body,
-            $foundationHash,
-        ));
-        $this->messageBus->dispatch(new SyncGroupMembershipMessage(
-            ScimLocalTypes::Body,
-            $foundationHash,
-        ));
+        foreach ($this->groupResolver->refsForBody($foundationHash) as $ref) {
+            $this->messageBus->dispatch(new SyncGroupMessage(
+                $ref->localType,
+                $ref->localId,
+            ));
+            $this->messageBus->dispatch(new SyncGroupMembershipMessage(
+                $ref->localType,
+                $ref->localId,
+            ));
+        }
     }
 
     /**
-     * The full sweep an administrator asks for: every account and every group the projection
-     * has. The handlers skip an object whose payload is unchanged, so in-sync state costs only
-     * the reads; drift that a register write never touched is what this repairs.
+     * The full sweep an administrator asks for: every member and every group the projection has.
+     * The handlers skip an object whose payload is unchanged, so in-sync state costs only the
+     * reads; drift that a register write never touched is what this repairs.
      */
     public function syncAll(): void
     {
@@ -205,8 +315,8 @@ final readonly class ScimSyncDispatcher
             return;
         }
 
-        foreach ($this->userRepository->findAll() as $user) {
-            $this->messageBus->dispatch(new SyncUserMessage($user->lidnr));
+        foreach ($this->memberRepository->findAll() as $member) {
+            $this->messageBus->dispatch(new SyncUserMessage($member->lidnr));
         }
 
         foreach ($this->groupResolver->allGroupRefs() as $ref) {

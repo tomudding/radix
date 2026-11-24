@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\MessageHandler\Scim;
 
+use App\Entity\Database\Enums\MembershipTypes;
+use App\Entity\Database\Enums\Studies;
+use App\Entity\Decision\Member;
 use App\Entity\User\Enums\ScimLocalTypes;
 use App\Entity\User\ScimRemoteLink;
 use App\Exception\Scim\ScimException;
@@ -11,11 +14,12 @@ use App\Exception\Scim\ScimNotFoundException;
 use App\Message\Scim\SyncGroupMembershipMessage;
 use App\Message\Scim\SyncUserMessage;
 use App\MessageHandler\Scim\SyncUserHandler;
+use App\Repository\Decision\MemberRepository;
 use App\Repository\User\ScimRemoteLinkRepository;
-use App\Repository\User\UserRepository;
 use App\Service\Scim\ScimGroupResolver;
 use App\Service\Scim\UserScimMapper;
 use App\Tests\Integration\DatabaseTestCase;
+use DateTimeImmutable;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -48,12 +52,6 @@ final class SyncUserHandlerTest extends DatabaseTestCase
 
                 return new Envelope($message);
             });
-
-        if (null !== self::getContainer()->get(UserRepository::class)->find(self::MEMBER)) {
-            return;
-        }
-
-        self::markTestSkipped('The seed member must have an account.');
     }
 
     public function testItCreatesTheRemoteUserAndStoresTheLink(): void
@@ -233,15 +231,85 @@ final class SyncUserHandlerTest extends DatabaseTestCase
         self::assertNull($this->link());
     }
 
-    public function testItIgnoresAMemberWithoutAnAccount(): void
+    public function testItSyncsAMemberWithoutAWebsiteAccount(): void
     {
+        $this->createMemberWithoutAccount(999_999);
+
         $this->handler()->__invoke(new SyncUserMessage(999_999));
 
         self::assertSame(
-            [],
+            ['createUser'],
             $this->client->calls,
         );
-        self::assertNull($this->link());
+        self::assertSame(
+            'm999999',
+            $this->client->createdUsers[0]->userName,
+        );
+    }
+
+    public function testItMarksALapsedMemberInactive(): void
+    {
+        $member = $this->createMemberWithoutAccount(999_997);
+        $member->expiration = new DateTimeImmutable('-1 day');
+        $this->entityManager->flush();
+
+        $this->handler()->__invoke(new SyncUserMessage(999_997));
+
+        self::assertSame(
+            ['createUser'],
+            $this->client->calls,
+        );
+        self::assertFalse($this->client->createdUsers[0]->active);
+    }
+
+    public function testItMarksALapsedGraduateInactive(): void
+    {
+        $member = $this->createMemberWithoutAccount(999_996);
+        $member->type = MembershipTypes::Graduate;
+        $member->expiration = new DateTimeImmutable('-1 day');
+        $this->entityManager->flush();
+
+        $this->handler()->__invoke(new SyncUserMessage(999_996));
+
+        self::assertSame(
+            ['createUser'],
+            $this->client->calls,
+        );
+        self::assertFalse($this->client->createdUsers[0]->active);
+    }
+
+    public function testItDeactivatesAMemberTheRegisterNoLongerHolds(): void
+    {
+        $this->seedLink(
+            'user-remote-old',
+            'a-stale-hash',
+            lidnr: 999_998,
+        );
+
+        $this->handler()->__invoke(new SyncUserMessage(999_998));
+
+        self::assertSame(
+            ['patchUser'],
+            $this->client->calls,
+        );
+        self::assertCount(
+            1,
+            $this->client->userPatches,
+        );
+        self::assertSame(
+            'user-remote-old',
+            $this->client->userPatches[0][0],
+        );
+
+        $link = $this->linkFor(999_998);
+        self::assertNotNull($link);
+        self::assertSame(
+            self::getContainer()->get(UserScimMapper::class)
+                ->deactivated(999_998)
+                ->payloadHash(),
+            $link->payloadHash,
+        );
+        self::assertNull($link->lastError);
     }
 
     private function handler(bool $scimEnabled = true): SyncUserHandler
@@ -251,7 +319,7 @@ final class SyncUserHandlerTest extends DatabaseTestCase
         return new SyncUserHandler(
             $this->client,
             $container->get(UserScimMapper::class),
-            $container->get(UserRepository::class),
+            $container->get(MemberRepository::class),
             $container->get(ScimRemoteLinkRepository::class),
             $container->get(ScimGroupResolver::class),
             $this->entityManager,
@@ -263,20 +331,46 @@ final class SyncUserHandlerTest extends DatabaseTestCase
 
     private function link(): ?ScimRemoteLink
     {
-        return self::getContainer()->get(ScimRemoteLinkRepository::class)->findForUser(self::MEMBER);
+        return $this->linkFor(self::MEMBER);
+    }
+
+    private function linkFor(int $lidnr): ?ScimRemoteLink
+    {
+        return self::getContainer()->get(ScimRemoteLinkRepository::class)->findForUser($lidnr);
     }
 
     private function seedLink(
         string $remoteId,
         string $payloadHash,
+        int $lidnr = self::MEMBER,
     ): void {
         $link = new ScimRemoteLink(
             ScimLocalTypes::User,
-            (string) self::MEMBER,
+            (string) $lidnr,
             $remoteId,
         );
         $link->payloadHash = $payloadHash;
         $this->entityManager->persist($link);
         $this->entityManager->flush();
+    }
+
+    private function createMemberWithoutAccount(int $lidnr): Member
+    {
+        $member = new Member();
+        $member->lidnr = $lidnr;
+        $member->firstName = 'No';
+        $member->middleName = '';
+        $member->initials = 'N';
+        $member->lastName = 'Account';
+        $member->generation = 2024;
+        $member->type = MembershipTypes::Ordinary;
+        $member->study = Studies::Unknown;
+        $member->changedOn = new DateTimeImmutable();
+        $member->expiration = new DateTimeImmutable('+1 year');
+        $member->birth = new DateTimeImmutable('2000-01-01');
+        $this->entityManager->persist($member);
+        $this->entityManager->flush();
+
+        return $member;
     }
 }

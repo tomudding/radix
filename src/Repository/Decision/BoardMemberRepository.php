@@ -46,8 +46,13 @@ class BoardMemberRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('bm')
             ->select('IDENTITY(bm.member)')
             ->distinct()
+            ->join(
+                'bm.member',
+                'm',
+            )
             ->where('bm.installDate >= :start')
             ->andWhere('bm.installDate < :end')
+            ->andWhere('m.deleted = false')
             ->setParameter(
                 'start',
                 $year->getStartDate(),
@@ -79,7 +84,12 @@ class BoardMemberRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('bm')
             ->select('IDENTITY(bm.member)')
             ->distinct()
+            ->join(
+                'bm.member',
+                'm',
+            )
             ->where('bm.installDate <= :date')
+            ->andWhere('m.deleted = false')
             ->setParameter(
                 'date',
                 $date,
@@ -123,8 +133,13 @@ class BoardMemberRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('bm')
             ->select('IDENTITY(bm.member)')
             ->distinct()
+            ->join(
+                'bm.member',
+                'm',
+            )
             ->where('bm.function = :function')
             ->andWhere('bm.installDate <= :date')
+            ->andWhere('m.deleted = false')
             ->setParameter(
                 'function',
                 $function,
@@ -172,8 +187,13 @@ class BoardMemberRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('bm')
             ->select('IDENTITY(bm.member)')
             ->distinct()
+            ->join(
+                'bm.member',
+                'm',
+            )
             ->where('bm.function = :function')
             ->andWhere('bm.releaseDate <= :date')
+            ->andWhere('m.deleted = false')
             ->setParameter(
                 'function',
                 $function,

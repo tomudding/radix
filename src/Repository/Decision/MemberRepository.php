@@ -40,10 +40,9 @@ class MemberRepository extends ServiceEntityRepository
     }
 
     /**
-     * The lidnrs of the active members of one type. Active means the membership has not expired and
-     * the account is not deleted, so the SCIM type group holds exactly the members a type group
-     * should reach. `$type` null selects every active member regardless of type, and a type may be
-     * given as null to pair with a filter on formality.
+     * The lidnrs of the active members of one type. Active means the membership has not expired
+     * and the account is not deleted, so a lapsed graduate drops out of the graduate groups just
+     * like any other lapsed membership. `$type` null selects every active member.
      *
      * @return list<int>
      */

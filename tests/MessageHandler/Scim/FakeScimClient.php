@@ -8,14 +8,13 @@ use App\Service\Scim\ScimClientInterface;
 use App\Service\Scim\ScimGroup;
 use App\Service\Scim\ScimOperation;
 use App\Service\Scim\ScimUser;
-use LogicException;
 use Throwable;
 
 /**
  * An in-memory stand-in for the SCIM source for handler tests.
  *
  * It records every call; each call's outcome is configurable, so a test can force the
- * not-found or failure path. The methods nothing in the tests uses fail loudly.
+ * not-found or failure path.
  */
 final class FakeScimClient implements ScimClientInterface
 {
@@ -64,6 +63,13 @@ final class FakeScimClient implements ScimClientInterface
      * @var list<ScimGroup>
      */
     public array $listedGroups = [];
+
+    /**
+     * The PATCHes applied to users, in order.
+     *
+     * @var list<array{0: string, 1: list<ScimOperation>}>
+     */
+    public array $userPatches = [];
 
     /**
      * The remote ids passed to the deletes, in order.
@@ -128,7 +134,17 @@ final class FakeScimClient implements ScimClientInterface
         string $remoteId,
         array $operations,
     ): ScimUser {
-        return $this->unused('patchUser');
+        $this->calls[] = 'patchUser';
+        $this->userPatches[] = [
+            $remoteId,
+            $operations,
+        ];
+
+        return new ScimUser(
+            userName: '',
+            active: false,
+            remoteId: $remoteId,
+        );
     }
 
     public function deleteUser(string $remoteId): void
@@ -223,13 +239,5 @@ final class FakeScimClient implements ScimClientInterface
         $this->calls[] = 'listGroups';
 
         return $this->listedGroups;
-    }
-
-    /**
-     * The handlers never call these; a test that reaches one has wired the wrong call.
-     */
-    private function unused(string $method): never
-    {
-        throw new LogicException($method . ' is not used in handler tests.');
     }
 }

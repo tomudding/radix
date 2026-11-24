@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Scim;
 
 use App\Entity\Database\Enums\BoardFunctions;
+use App\Entity\Database\Enums\InstallationFunctions;
 use App\Entity\Decision\AssociationYear;
 use App\Service\Scim\ScimGroupKey;
 use PHPUnit\Framework\TestCase;
@@ -67,6 +68,41 @@ final class ScimGroupKeyTest extends TestCase
                 'ALV-5.2.3.1',
                 1990,
             )->externalId,
+        );
+    }
+
+    public function testABodyFunctionUsesTheEnglishNameAndDutchValue(): void
+    {
+        $key = ScimGroupKey::bodyFunction(
+            'SKB',
+            'ALV-5.2.3.1',
+            InstallationFunctions::Chair,
+        );
+
+        self::assertSame(
+            'BODY_SKB_Chair',
+            $key->displayName,
+        );
+        self::assertSame(
+            'BODY:ALV-5.2.3.1:Voorzitter',
+            $key->externalId,
+        );
+    }
+
+    public function testAnInactiveBodyIsASeparateDrop(): void
+    {
+        $key = ScimGroupKey::inactiveBody(
+            'SKB',
+            'ALV-5.2.3.1',
+        );
+
+        self::assertSame(
+            'BODY_SKB_Inactive',
+            $key->displayName,
+        );
+        self::assertSame(
+            'BODY:ALV-5.2.3.1:inactive',
+            $key->externalId,
         );
     }
 

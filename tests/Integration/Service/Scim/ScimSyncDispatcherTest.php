@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Service\Scim;
 
+use App\Entity\Database\Enums\InstallationFunctions;
 use App\Entity\Database\SubDecision\Board\Installation as LedgerBoardInstallation;
 use App\Entity\Database\SubDecision\Installation as LedgerOrganInstallation;
 use App\Entity\Database\SubDecision\Key\Granting as LedgerKeyGranting;
 use App\Entity\User\Enums\ScimLocalTypes;
 use App\Message\Scim\SyncGroupMembershipMessage;
 use App\Message\Scim\SyncGroupMessage;
-use App\Repository\User\UserRepository;
+use App\Repository\Decision\MemberRepository;
 use App\Service\Scim\ScimGroupResolver;
 use App\Service\Scim\ScimSyncDispatcher;
 use App\Tests\Integration\DatabaseTestCase;
@@ -54,7 +55,7 @@ final class ScimSyncDispatcherTest extends DatabaseTestCase
 
         $dispatcher = new ScimSyncDispatcher(
             $bus,
-            self::getContainer()->get(UserRepository::class),
+            self::getContainer()->get(MemberRepository::class),
             self::getContainer()->get(ScimGroupResolver::class),
             true,
         );
@@ -111,7 +112,7 @@ final class ScimSyncDispatcherTest extends DatabaseTestCase
 
         $dispatcher = new ScimSyncDispatcher(
             $bus,
-            self::getContainer()->get(UserRepository::class),
+            self::getContainer()->get(MemberRepository::class),
             self::getContainer()->get(ScimGroupResolver::class),
             true,
         );
@@ -139,6 +140,66 @@ final class ScimSyncDispatcherTest extends DatabaseTestCase
         );
     }
 
+    public function testAnOrganInstallationDispatchesItsFunctionGroup(): void
+    {
+        $database = self::getContainer()->get('doctrine')->getManager('database');
+        self::assertInstanceOf(
+            EntityManagerInterface::class,
+            $database,
+        );
+        $installation = null;
+        foreach ($database->getRepository(LedgerOrganInstallation::class)->findAll() as $candidate) {
+            if (InstallationFunctions::Chair === $candidate->function) {
+                $installation = $candidate;
+
+                break;
+            }
+        }
+
+        self::assertNotNull($installation);
+
+        $dispatched = [];
+        $bus = self::createStub(MessageBusInterface::class);
+        $bus->method('dispatch')
+            ->willReturnCallback(static function (object $message, array $context = []) use (&$dispatched): Envelope {
+                $dispatched[] = $message;
+
+                return new Envelope($message);
+            });
+
+        $dispatcher = new ScimSyncDispatcher(
+            $bus,
+            self::getContainer()->get(MemberRepository::class),
+            self::getContainer()->get(ScimGroupResolver::class),
+            true,
+        );
+        $dispatcher->subDecisionChanged($installation);
+
+        $functionMessages = array_values(array_filter(
+            $dispatched,
+            static fn (object $message): bool => $message instanceof SyncGroupMessage
+                && ScimLocalTypes::BodyFunction === $message->getLocalType(),
+        ));
+        self::assertCount(
+            1,
+            $functionMessages,
+        );
+        self::assertSame(
+            ScimGroupResolver::bodyFunctionKey(
+                sprintf(
+                    '%s-%d.%d.%d.%d',
+                    $installation->foundation->getMeetingType()->value,
+                    $installation->foundation->getMeetingNumber(),
+                    $installation->foundation->getDecisionPoint(),
+                    $installation->foundation->getDecisionNumber(),
+                    $installation->foundation->sequence,
+                ),
+                InstallationFunctions::Chair,
+            ),
+            $functionMessages[0]->getLocalId(),
+        );
+    }
+
     public function testAnOrganInstallationDispatchesItsBodyGroup(): void
     {
         $database = self::getContainer()->get('doctrine')->getManager('database');
@@ -146,7 +207,15 @@ final class ScimSyncDispatcherTest extends DatabaseTestCase
             EntityManagerInterface::class,
             $database,
         );
-        $installation = $database->getRepository(LedgerOrganInstallation::class)->findOneBy([]);
+        $installation = null;
+        foreach ($database->getRepository(LedgerOrganInstallation::class)->findAll() as $candidate) {
+            if (InstallationFunctions::Member === $candidate->function) {
+                $installation = $candidate;
+
+                break;
+            }
+        }
+
         self::assertNotNull($installation);
         $foundation = $installation->foundation;
 
@@ -161,7 +230,7 @@ final class ScimSyncDispatcherTest extends DatabaseTestCase
 
         $dispatcher = new ScimSyncDispatcher(
             $bus,
-            self::getContainer()->get(UserRepository::class),
+            self::getContainer()->get(MemberRepository::class),
             self::getContainer()->get(ScimGroupResolver::class),
             true,
         );

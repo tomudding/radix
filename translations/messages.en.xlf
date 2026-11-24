@@ -865,10 +865,6 @@
         <source>Account security</source>
         <target state="translated">Account security</target>
       </trans-unit>
-      <trans-unit id="xzFUWig" resname="Accounts">
-        <source>Accounts</source>
-        <target>Accounts</target>
-      </trans-unit>
       <trans-unit id="BUIQ..a" resname="Action">
         <source>Action</source>
         <target state="translated">Action</target>
@@ -1956,6 +1952,14 @@
       <trans-unit id="ppP2kVG" resname="Body Regulation">
         <source>Body Regulation</source>
         <target state="translated">Body Regulation</target>
+      </trans-unit>
+      <trans-unit id="V2HG5Ru" resname="Body function">
+        <source>Body function</source>
+        <target state="translated">Body function</target>
+      </trans-unit>
+      <trans-unit id="qJOzLdw" resname="Body functions">
+        <source>Body functions</source>
+        <target state="translated">Body functions</target>
       </trans-unit>
       <trans-unit id="jNfIQmd" resname="Body labels">
         <source>Body labels</source>
@@ -6093,10 +6097,6 @@
         <source>No Checkout Sessions on record.</source>
         <target state="translated">No Checkout Sessions on record.</target>
       </trans-unit>
-      <trans-unit id="ivx8siG" resname="No account with membership number %lidnr%.">
-        <source>No account with membership number %lidnr%.</source>
-        <target>No account with membership number %lidnr%.</target>
-      </trans-unit>
       <trans-unit id="BkfpdNJ" resname="No action recommended">
         <source>No action recommended</source>
         <target state="translated">No action recommended</target>
@@ -6288,6 +6288,10 @@
       <trans-unit id="OV0Ogso" resname="No meetings of this type have taken place yet.">
         <source>No meetings of this type have taken place yet.</source>
         <target state="translated">No meetings of this type have taken place yet.</target>
+      </trans-unit>
+      <trans-unit id="DbZ_X1a" resname="No member with membership number %lidnr%.">
+        <source>No member with membership number %lidnr%.</source>
+        <target>No member with membership number %lidnr%.</target>
       </trans-unit>
       <trans-unit id="DI5Mjh0" resname="No members match">
         <source>No members match</source>

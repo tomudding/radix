@@ -88,7 +88,7 @@ final class ScimSyncTest extends BrowserTestCase
         );
     }
 
-    public function testAnUnknownAccountIsRefused(): void
+    public function testAnUnknownMemberIsRefused(): void
     {
         $client = static::createPantherClient();
         $this->signIn($client);
@@ -108,7 +108,7 @@ final class ScimSyncTest extends BrowserTestCase
 
         $this->assertPageContains(
             $client,
-            'No account with membership number 99999999.',
+            'No member with membership number 99999999.',
         );
     }
 
